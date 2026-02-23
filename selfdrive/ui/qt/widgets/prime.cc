@@ -1,3 +1,4 @@
+#include "openpilot/common/params.h"
 #include "selfdrive/ui/qt/widgets/prime.h"
 
 #include <QDebug>
@@ -146,31 +147,36 @@ PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
   main_layout->setContentsMargins(80, 90, 80, 60);
   main_layout->setSpacing(0);
 
-  QLabel *upgrade = new QLabel(tr("Upgrade Now"));
-  upgrade->setStyleSheet("font-size: 75px; font-weight: bold;");
-  main_layout->addWidget(upgrade, 0, Qt::AlignTop);
-  main_layout->addSpacing(50);
+// ---------- LOGO ----------
+imageLabel = new QLabel(this);
+imageLabel->setAlignment(Qt::AlignCenter);
+imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
-  QLabel *description = new QLabel(tr("Become a comma prime member at connect.comma.ai"));
-  description->setStyleSheet("font-size: 56px; font-weight: light; color: white;");
-  description->setWordWrap(true);
-  main_layout->addWidget(description, 0, Qt::AlignTop);
+QPixmap logo("/data/openpilot/selfdrive/assets/kia.png");
 
-  main_layout->addStretch();
+// Prend quasiment toute la largeur disponible
+int targetWidth = 1200;
+int targetHeight = 600;
 
-  QLabel *features = new QLabel(tr("PRIME FEATURES:"));
-  features->setStyleSheet("font-size: 41px; font-weight: bold; color: #E5E5E5;");
-  main_layout->addWidget(features, 0, Qt::AlignBottom);
-  main_layout->addSpacing(30);
+QPixmap scaledLogo = logo.scaled(
+  targetWidth,
+  targetHeight,
+  Qt::KeepAspectRatio,
+  Qt::SmoothTransformation
+);
 
-  QVector<QString> bullets = {tr("Remote access"), tr("24/7 LTE connectivity"), tr("1 year of drive storage"), tr("Remote snapshots")};
-  for (auto &b : bullets) {
-    const QString check = "<b><font color='#465BEA'>✓</font></b> ";
-    QLabel *l = new QLabel(check + b);
-    l->setAlignment(Qt::AlignLeft);
-    l->setStyleSheet("font-size: 50px; margin-bottom: 15px;");
-    main_layout->addWidget(l, 0, Qt::AlignBottom);
-  }
+imageLabel->setPixmap(scaledLogo);
+
+main_layout->addWidget(imageLabel, 1);
+
+
+
+  // ---------- COUNTDOWN ----------
+  countdownLabel = new QLabel(this);
+  countdownLabel->setAlignment(Qt::AlignCenter);
+  countdownLabel->setWordWrap(true);
+  countdownLabel->setStyleSheet("font-size: 55px; font-weight: bold; color: #FF4444;");
+  main_layout->addWidget(countdownLabel, 1, Qt::AlignCenter);
 
   setStyleSheet(R"(
     PrimeAdWidget {
@@ -178,7 +184,43 @@ PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
       background-color: #333333;
     }
   )");
+
+  static Params params;
+
+  QTimer *timer = new QTimer(this);
+  connect(timer, &QTimer::timeout, this, [=]() {
+
+    QString countdownStr = QString::fromStdString(params.get("ShutdownCountdown"));
+    int countdown = countdownStr.toInt();
+
+    if (countdown > 0) {
+
+      // Affiche countdown
+      imageLabel->hide();
+      countdownLabel->show();
+
+      countdownLabel->setText(
+        QString("Extinction automatique\n%1 s").arg(countdown)
+      );
+
+      if (countdown <= 10) {
+        countdownLabel->setStyleSheet("font-size: 75px; font-weight: bold; color: red;");
+      } else {
+        countdownLabel->setStyleSheet("font-size: 75px; font-weight: bold; color: #FF4444;");
+      }
+
+    } else {
+
+      // Affiche logo
+      countdownLabel->hide();
+      imageLabel->show();
+    }
+  });
+
+  timer->start(1000);
 }
+
+
 
 
 SetupWidget::SetupWidget(QWidget* parent) : QFrame(parent) {

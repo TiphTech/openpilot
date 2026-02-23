@@ -29,12 +29,10 @@ class PowerMonitoring:
     self.car_voltage_instant_mV = 12e3          # Last value of peripheralState voltage
     self.integration_lock = threading.Lock()
 
-    car_battery_capacity_uWh = self.params.get("CarBatteryCapacity")
-    if car_battery_capacity_uWh is None:
-      car_battery_capacity_uWh = 0
+    car_battery_capacity_uWh = self.params.get("CarBatteryCapacity") or 0
 
     # Reset capacity if it's low
-    self.car_battery_capacity_uWh = max((CAR_BATTERY_CAPACITY_uWh / 10), int(car_battery_capacity_uWh))
+    self.car_battery_capacity_uWh = max((CAR_BATTERY_CAPACITY_uWh / 10), car_battery_capacity_uWh)
 
   # Calculation tick
   def calculate(self, voltage: int | None, ignition: bool):
@@ -106,24 +104,52 @@ class PowerMonitoring:
   def get_car_battery_capacity(self) -> int:
     return int(self.car_battery_capacity_uWh)
 
-  # See if we need to shutdown
-  def should_shutdown(self, ignition: bool, in_car: bool, offroad_timestamp: float | None, started_seen: bool):
-    if offroad_timestamp is None:
-      return False
+  # Max Time Offroad
+  def max_time_offroad_exceeded(self, offroad_time):
+    """
+    Check if the max time offroad has been exceeded. If the value is 0, it means no limit.
+    :param offroad_time: Time spent offroad in seconds
+    :return: True if the max time offroad has been exceeded, False otherwise
+    """
+    try:
+      param = self.params.get("MaxTimeOffroad")
+      sp_max_time_val_s = param * 60 if param is not None and param >= 0 else MAX_TIME_OFFROAD_S
+    except Exception:
+      sp_max_time_val_s = MAX_TIME_OFFROAD_S
 
-    now = time.monotonic()
-    should_shutdown = False
-    offroad_time = (now - offroad_timestamp)
-    low_voltage_shutdown = (self.car_voltage_mV < (VBATT_PAUSE_CHARGING * 1e3) and
-                            offroad_time > VOLTAGE_SHUTDOWN_MIN_OFFROAD_TIME_S)
-    MAX_TIME_OFFROAD_S = Params().get_int("MaxTimeOffroadMin") * 60
-    should_shutdown |= offroad_time > MAX_TIME_OFFROAD_S
-    should_shutdown |= low_voltage_shutdown
-    should_shutdown |= (self.car_battery_capacity_uWh <= 0)
-    should_shutdown &= not ignition
-    should_shutdown &= (not self.params.get_bool("DisablePowerDown"))
-    should_shutdown &= in_car
-    should_shutdown &= offroad_time > DELAY_SHUTDOWN_TIME_S
-    should_shutdown |= self.params.get_bool("ForcePowerDown")
-    should_shutdown &= started_seen or (now > MIN_ON_TIME_S)
-    return should_shutdown
+    return 0 < sp_max_time_val_s <= offroad_time
+
+  # See if we need to shutdown
+  def should_shutdown(self, ignition: bool, in_car: bool,
+                    offroad_timestamp: float | None,
+                    started_seen: bool):
+
+    if ignition:
+        return False
+
+    if not in_car:
+        return False
+
+    if offroad_timestamp is None:
+        return False
+
+    # Temps passé offroad
+    offroad_time = time.monotonic() - offroad_timestamp
+
+    # Récupération du param (en minutes)
+    max_time_min = self.params.get_int("MaxTimeOffroadMin")
+
+    # 0 = pas de limite
+    if max_time_min <= 0:
+        return False
+
+    max_time_s = max_time_min * 60
+
+    # Petit délai propre d'extinction (flush sécurité)
+    CLEAN_SHUTDOWN_DELAY_S = 30
+
+    # Condition finale
+    if offroad_time >= (max_time_s + CLEAN_SHUTDOWN_DELAY_S):
+        return True
+
+    return False
