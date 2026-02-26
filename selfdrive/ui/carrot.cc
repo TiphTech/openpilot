@@ -2900,6 +2900,44 @@ class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
     float steering_angle_pos = 0.0;
+    int blinker_anim_phase = 0;
+
+    NVGcolor lerp_color(const NVGcolor& a, const NVGcolor& b, float t) {
+        t = std::clamp(t, 0.0f, 1.0f);
+        return nvgRGBAf(
+            a.r + (b.r - a.r) * t,
+            a.g + (b.g - a.g) * t,
+            a.b + (b.b - a.b) * t,
+            a.a + (b.a - a.a) * t
+        );
+    }
+
+    void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
+        NVGcolor base = COLOR_BLACK_ALPHA(90);
+        ui_fill_rect(vg, {x, y, w, h}, base, 18);
+        if (!active) return;
+
+        constexpr int steps = 6;
+        int phase = (blinker_anim_phase / 2) % (steps + 2);
+        float seg_h = (h / 2.0f) / steps;
+        float pad = 3.0f;
+        float center_y = y + h / 2.0f;
+
+        for (int i = 0; i < steps; i++) {
+            if (i > phase) break;
+            float alpha = 220.0f - i * 22.0f;
+            NVGcolor c = COLOR_ORANGE_ALPHA((int)std::max(90.0f, alpha));
+
+            int top_y = (int)(center_y - (i + 1) * seg_h + pad);
+            int bot_y = (int)(center_y + i * seg_h + pad);
+            int seg_height = (int)(seg_h - pad * 2.0f);
+            if (seg_height < 2) seg_height = 2;
+
+            ui_fill_rect(vg, {x + 4, top_y, w - 8, seg_height}, c, 8);
+            ui_fill_rect(vg, {x + 4, bot_y, w - 8, seg_height}, c, 8);
+        }
+    }
+
     NVGcolor get_tpms_color(float tpms) {
         if (tpms < 5 || tpms > 60) // N/A
             return COLOR_GREEN;
@@ -2937,15 +2975,47 @@ public:
     }
     void draw(UIState *s, int w, int h, NVGcolor bg, NVGcolor bg_long) {
         NVGcontext* vg = s->vg_border;
-
-        ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, bg, 15);
-        ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bg_long, 15);
-
-        ui_fill_rect(vg, {w - 50, h/2 - 95, 50, 190}, (_right_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
-        ui_fill_rect(vg, {0, h/2 - 95, 50, 190}, (_left_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
+        (void)bg;
+        (void)bg_long;
+        blinker_anim_phase = (blinker_anim_phase + 1) % 64;
 
         const SubMaster& sm = *(s->sm);
         auto car_state = sm["carState"].getCarState();
+
+        bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
+        bool scc_active = car_state.getCruiseState().getEnabled();
+        if (!scc_active && sm.alive("selfdriveState")) {
+          scc_active = sm["selfdriveState"].getSelfdriveState().getEnabled();
+        }
+
+        float brake_strength = 0.0f;
+        if (sm.alive("carControl")) {
+          float accel_cmd = sm["carControl"].getCarControl().getActuators().getAccel();
+          brake_strength = std::clamp(-accel_cmd / 3.5f, 0.0f, 1.0f);
+        }
+        brake_strength = std::max(brake_strength, std::clamp(-car_state.getAEgo() / 3.0f, 0.0f, 1.0f));
+        if (car_state.getBrakeLights()) {
+          brake_strength = std::max(brake_strength, 0.25f);
+        }
+
+        NVGcolor top_bar = lat_active ? nvgRGBA(57, 255, 20, 165) : COLOR_BLACK_ALPHA(0);
+
+        NVGcolor bottom_bar = COLOR_BLACK_ALPHA(0);
+        if (scc_active) {
+          NVGcolor cruise_green = nvgRGBA(57, 255, 20, 165);
+          NVGcolor brake_red = nvgRGBA(255, 30, 30, 210);
+          bottom_bar = lerp_color(cruise_green, brake_red, brake_strength);
+        }
+
+        ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, top_bar, 15);
+        ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bottom_bar, 15);
+
+        int blink_w = 70;
+        int blink_h = 285;
+        int blink_y = h / 2 - blink_h / 2;
+        draw_blinker_lane(vg, w - blink_w, blink_y, blink_w, blink_h, _right_blinker);
+        draw_blinker_lane(vg, 0, blink_y, blink_w, blink_h, _left_blinker);
+
         float a_ego = car_state.getAEgo();
 
         a_ego_width = a_ego_width * 0.5 + (w * std::abs(a_ego) / 4.0) * 0.5;
