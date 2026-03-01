@@ -144,7 +144,7 @@ PrimeUserWidget::PrimeUserWidget(QWidget *parent) : QFrame(parent) {
 
 PrimeAdWidget::PrimeAdWidget(QWidget* parent) : QFrame(parent) {
   QVBoxLayout *main_layout = new QVBoxLayout(this);
-  main_layout->setContentsMargins(80, 90, 80, 60);
+  main_layout->setContentsMargins(0, 0, 0, 0);
   main_layout->setSpacing(0);
 
 // ---------- LOGO ----------
@@ -153,19 +153,8 @@ imageLabel->setAlignment(Qt::AlignCenter);
 imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
 QPixmap logo("/data/openpilot/selfdrive/assets/kia.png");
-
-// Prend quasiment toute la largeur disponible
-int targetWidth = 1200;
-int targetHeight = 600;
-
-QPixmap scaledLogo = logo.scaled(
-  targetWidth,
-  targetHeight,
-  Qt::KeepAspectRatio,
-  Qt::SmoothTransformation
-);
-
-imageLabel->setPixmap(scaledLogo);
+imageLabel->setPixmap(logo);
+imageLabel->setScaledContents(true);
 
 main_layout->addWidget(imageLabel, 1);
 
