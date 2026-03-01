@@ -224,7 +224,7 @@ static inline void fill_rect(NVGcontext* vg, const Rect1& r, const NVGcolor* col
     if (stroke_width > 0) {
         nvgStrokeWidth(vg, stroke_width);
         if (stroke_color) nvgStrokeColor(vg, *stroke_color);
-		else nvgStrokeColor(vg, nvgRGB(0, 0, 0));   
+        else nvgStrokeColor(vg, nvgRGB(0, 0, 0));   
         nvgStroke(vg);                         
     }
 }
@@ -290,7 +290,7 @@ protected:
     float   plotDx = 2.0;
     int     show_plot_mode = 0;
     int     show_plot_mode_prev = -1;
-    void	drawPlotting(const UIState* s, int index, int start, float x, float y[], int size, NVGcolor* color, float stroke = 0.0) {
+    void    drawPlotting(const UIState* s, int index, int start, float x, float y[], int size, NVGcolor* color, float stroke = 0.0) {
         nvgBeginPath(s->vg);
         plotRatio = (plotMax - plotMin) < 1.0 ? plotHeight : plotHeight / (plotMax - plotMin);
         float dx = plotDx;
@@ -318,7 +318,7 @@ protected:
     Params  params;
     std::deque<float> minDeque[3];  // 최소값을 유지하는 덱
     std::deque<float> maxDeque[3];  // 최대값을 유지하는 덱
-    void	makePlotData(const UIState* s, float data[], char* title) {
+    void    makePlotData(const UIState* s, float data[], char* title) {
 
         SubMaster& sm = *(s->sm);
         auto    car_state = sm["carState"].getCarState();
@@ -362,7 +362,7 @@ protected:
             data[1] = velocity.getX()[32];
             data[2] = velocity.getX()[0];
             sprintf(title, "3.Model(Y:pos_32, G:vel_32, O:vel_0)");
-			      break;
+                  break;
         case 4:
             data[0] = accel;
             data[1] = lead_radar.getALeadK();
@@ -460,7 +460,7 @@ protected:
         if (plotMax < 2.0) plotMax = 2.0;
     }
 public:
-    void	draw(const UIState* s) {
+    void    draw(const UIState* s) {
         show_plot_mode = params.getInt("ShowPlotMode");
         if (show_plot_mode == 0) return;
         SubMaster& sm = *(s->sm);
@@ -608,8 +608,8 @@ private:
 
 protected:
     bool make_data(const UIState* s) {
-		SubMaster& sm = *(s->sm);
-		if (!sm.alive("modelV2")) return false;
+        SubMaster& sm = *(s->sm);
+        if (!sm.alive("modelV2")) return false;
 
         v_ego = sm["carState"].getCarState().getVEgo();
         brakeHoldActive = sm["carState"].getCarState().getBrakeHoldActive();
@@ -709,7 +709,7 @@ protected:
         _model->mapToScreen(tf_distance, tf_y + 1.0, tf_z + 1.22, &tf_vertex_right);
 
         return true;
-	};
+    };
     bool isLeadSCC() {
         return radarTrackId < 1;
     }
@@ -724,7 +724,7 @@ public:
     int getPathY() { return path_y; }
 
     void draw(const UIState* s) {
-		if (!make_data(s)) return;
+        if (!make_data(s)) return;
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         int x = path_x;
         int y = path_y - 135;
@@ -755,8 +755,8 @@ public:
 #endif
             }
             else if (xState == 4) {     //XState.e2ePrepare
-				      ui_draw_text(s, x, disp_y, "E2E주행중", disp_size, COLOR_WHITE, BOLD);
-			      }
+                      ui_draw_text(s, x, disp_y, "E2E주행중", disp_size, COLOR_WHITE, BOLD);
+                  }
             else if (xState == 0 || xState == 1 || xState == 2) {     //XState.lead
                 draw_dist = true;
             }
@@ -877,7 +877,7 @@ public:
 #endif
         }
 
-	}
+    }
 };
 
 class LaneLineDrawer : ModelDrawer {
@@ -1108,7 +1108,7 @@ protected:
                 ui_draw_text(s, bx, by + 25 * scale - 6 * (1 - scale), str, 60 * scale, COLOR_BLACK, BOLD, 0.0f, 0.0f);
             }
         }
-	}
+    }
     int  drawTurnInfoHud(const UIState* s) {
       if (s->fb_w < 1200) return -1;
 #ifdef __UI_TEST
@@ -1329,11 +1329,11 @@ public:
         _left_blinker = false;
         if (blinker_timer <= 8) {
             if (right_blinker) {
-		_right_blinker = true;
+        _right_blinker = true;
                 ui_draw_image(s, { x - icon_size / 2, y - icon_size / 2, icon_size, icon_size }, "ic_blinker_r", 1.0f);
             }
             if (left_blinker) {
-		_left_blinker = true;
+        _left_blinker = true;
                 ui_draw_image(s, { x - icon_size / 2, y - icon_size / 2, icon_size, icon_size }, "ic_blinker_l", 1.0f);
             }
         }
@@ -1640,8 +1640,8 @@ protected:
 protected:
     bool longActive = false;
     bool make_data(const UIState* s) {
-		  SubMaster& sm = *(s->sm);
-		  if (!sm.alive("modelV2") || !sm.alive("carState")) return false;
+          SubMaster& sm = *(s->sm);
+          if (!sm.alive("modelV2") || !sm.alive("carState")) return false;
         const cereal::ModelDataV2::Reader& model = sm["modelV2"].getModelV2();
         active_lane_line = sm["controlsState"].getControlsState().getActiveLaneLine();
         auto model_position = model.getPosition();
@@ -1950,8 +1950,8 @@ class DrawCarrot : public QObject {
     Q_OBJECT
 
 protected:
-    Params	params;
-    Params	params_memory{ "/dev/shm/params" };
+    Params  params;
+    Params  params_memory{ "/dev/shm/params" };
     int     icon_size = 256;
 public:
     DrawCarrot() {
@@ -2057,15 +2057,15 @@ public:
                 atcType.toStdString().c_str(),
                 carrot_man.getTrafficState());
         }
-		    else {
+            else {
           active_carrot = 0;
-			    apply_speed = 250.0;
+                apply_speed = 250.0;
           apply_source = "";
           carrot_man_debug[0] = 0;
           szPosRoadName = "";
           nRoadLimitSpeed = 30;
           nGoPosDist = 0;
-		    }
+            }
 
         xState = lp.getXState();
         trafficState = lp.getTrafficState();
@@ -2104,7 +2104,7 @@ public:
         }
 #endif
         return true;
-	  }
+      }
     void drawRadarInfo(UIState* s) {
       char str[128];
       int show_radar_info = params.getInt("ShowRadarInfo");
@@ -2239,29 +2239,29 @@ public:
       if (!nav_path_display) return;
 #if 0
         if (nav_path_vertex_count > 0) {
-			nvgBeginPath(s->vg);
-			nvgMoveTo(s->vg, nav_path_vertex[0].x(), nav_path_vertex[0].y());
-			for (int i = 1; i < nav_path_vertex_count; i++) {
+            nvgBeginPath(s->vg);
+            nvgMoveTo(s->vg, nav_path_vertex[0].x(), nav_path_vertex[0].y());
+            for (int i = 1; i < nav_path_vertex_count; i++) {
                 float x = nav_path_vertex[i].x();
                 float y = nav_path_vertex[i].y();
                 if (isnan(x) || isnan(y)) continue;
                 nvgLineTo(s->vg, x, y);
-			}
-			nvgStrokeColor(s->vg, COLOR_GREEN);
-			nvgStrokeWidth(s->vg, 20.0f);
-			nvgStroke(s->vg);
-		}
+            }
+            nvgStrokeColor(s->vg, COLOR_GREEN);
+            nvgStrokeWidth(s->vg, 20.0f);
+            nvgStroke(s->vg);
+        }
 #elif 1
         if (nav_path_vertex_count > 1) {
             for(int i = 1; i < nav_path_vertex_count; i++) {
                 float x = nav_path_vertex[i].x();
                 float y = nav_path_vertex[i].y();
                 if(isnan(x) || isnan(y)) continue;
-				nvgBeginPath(s->vg);
+                nvgBeginPath(s->vg);
                 nvgCircle(s->vg, x, y, 10);
                 nvgFillColor(s->vg, COLOR_GREEN);
                 nvgFill(s->vg);
-			}
+            }
         }
 
 #else
@@ -2332,13 +2332,13 @@ public:
         bool green_light = trafficState == 2;
 
         if(trafficState_carrot == 1) {
-			red_light = true;
+            red_light = true;
             icon_red *= 1.5;
-		}
-		else if(trafficState_carrot == 2) {
-			green_light = true;
+        }
+        else if(trafficState_carrot == 2) {
+            green_light = true;
             icon_green *= 1.5;
-		}
+        }
         if (red_light) ui_draw_image(s, { x - icon_red / 2, y - icon_red / 2 + 270, icon_red, icon_red }, "ic_traffic_red", 1.0f);
         else if (green_light) ui_draw_image(s, { x - icon_green / 2, y - icon_green / 2 + 270, icon_green, icon_green }, "ic_traffic_green", 1.0f);
 
@@ -2353,12 +2353,12 @@ public:
         int cruise_x = bx + 170;
         int cruise_y = by + 15;
         if(longActive) sprintf(cruise_speed, "%d", (int)((s->scene.is_metric)?v_cruise: v_cruise * KM_TO_MILE + 0.5));
-		    else sprintf(cruise_speed, "--");
+            else sprintf(cruise_speed, "--");
         if (strcmp(cruise_speed_last, cruise_speed) != 0) {
-			    strcpy(cruise_speed_last, cruise_speed);
+                strcpy(cruise_speed_last, cruise_speed);
           if(strcmp(cruise_speed, "--"))
             ui_draw_text_a(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD);
-		    }
+            }
         ui_draw_text(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 
         // draw apply speed
@@ -2374,11 +2374,11 @@ public:
             ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, apply_source.toStdString().c_str(), 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
         }
-		    else if(abs(cruiseTarget - v_cruise) > 0.5) {
+            else if(abs(cruiseTarget - v_cruise) > 0.5) {
             sprintf(apply_speed_str, "%d", (int)((s->scene.is_metric)?cruiseTarget: cruiseTarget * KM_TO_MILE + 0.5));
-			      ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
+                  ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, "eco", 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
-		    }
+            }
         const SubMaster& sm = *(s->sm);
 
         // draw gap info
@@ -2435,9 +2435,9 @@ public:
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::PARK) strcpy(gear_str, "P");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::DRIVE) {
             if (carState.getGearStep() > 0)
-      				sprintf(gear_str, "%d", carState.getGearStep());
-		      	else
-				      strcpy(gear_str, "D");
+                    sprintf(gear_str, "%d", carState.getGearStep());
+                else
+                      strcpy(gear_str, "D");
         }
         else if(carState.getGearShifter() == cereal::CarState::GearShifter::NEUTRAL) strcpy(gear_str, "N");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::REVERSE) strcpy(gear_str, "R");
@@ -2445,14 +2445,14 @@ public:
         else if(carState.getGearShifter() == cereal::CarState::GearShifter::LOW) strcpy(gear_str, "L");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::BRAKE) strcpy(gear_str, "B");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::ECO) strcpy(gear_str, "E");
-		else strcpy(gear_str, "M");
+        else strcpy(gear_str, "M");
 
         ui_fill_rect(s->vg, { dx - 35, dy - 70, 70, 80 }, COLOR_GREEN_ALPHA(210), 15, 3, &white_color);
         ui_draw_text(s, dx, dy, gear_str, 70, COLOR_WHITE, BOLD);
 
         if (strcmp(gear_str, gear_str_last)) {
             ui_draw_text_a(s, dx, dy, gear_str, 70, COLOR_WHITE, BOLD);
-			strcpy(gear_str_last, gear_str);
+            strcpy(gear_str_last, gear_str);
         }
 
         dx = bx + 200;
@@ -2470,7 +2470,7 @@ public:
         }
         if (nav_path_vertex_count > 1) {
             ui_draw_text(s, dx, dy - 45, "ROUTE", 30, COLOR_WHITE, BOLD);
-		}
+        }
 #ifdef __UI_TEST
         active_carrot = 2;
         nRoadLimitSpeed = 30;
@@ -2491,7 +2491,7 @@ public:
             }
             else {
                 disp_speed = nRoadLimitSpeed;
-		            disp_speed = (int)(disp_speed * ((s->scene.is_metric)?1.0:KM_TO_MILE) + 0.5);
+                    disp_speed = (int)(disp_speed * ((s->scene.is_metric)?1.0:KM_TO_MILE) + 0.5);
                 limit_color = (v_ego * 3.6 > disp_speed + 2) ? COLOR_RED_ALPHA(210) : COLOR_WHITE_ALPHA(210);
                 ui_draw_text(s, dx, dy - 45, "LIMIT", 30, COLOR_WHITE, BOLD);
             }
@@ -2704,7 +2704,7 @@ public:
         QString str = "";
         str.sprintf("MEM:%d%% DISK:%.0f%% CPU:%.0f%%,%.0f\u00B0C", memoryUsage, freeSpace, cpuUsage, cpuTemp);
         NVGcolor top_right_color = (cpuTemp > 85.0 || memoryUsage > 85.0) ? COLOR_ORANGE : COLOR_WHITE;
-		ui_draw_text(s, s->fb_w - 10, 2, str.toStdString().c_str(), 30, top_right_color, BOLD, 3.0f, 1.0f);
+        ui_draw_text(s, s->fb_w - 10, 2, str.toStdString().c_str(), 30, top_right_color, BOLD, 3.0f, 1.0f);
     }
 
 };
@@ -2900,6 +2900,33 @@ class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
     float steering_angle_pos = 0.0;
+    int blinker_anim_phase = 0;
+
+    NVGcolor lerp_color(const NVGcolor& a, const NVGcolor& b, float t) {
+        t = std::clamp(t, 0.0f, 1.0f);
+        return nvgRGBAf(
+            a.r + (b.r - a.r) * t,
+            a.g + (b.g - a.g) * t,
+            a.b + (b.b - a.b) * t,
+            a.a + (b.a - a.a) * t
+        );
+    }
+
+    void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
+        ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(150), 20);
+        if (!active) return;
+
+        float phase = (float)(blinker_anim_phase % 24) / 23.0f;
+        float progress = (phase < 0.5f) ? (phase * 2.0f) : 1.0f;
+        float center_y = y + h / 2.0f;
+        int fill_h = (int)(h * progress);
+        int fill_y = (int)(center_y - fill_h / 2.0f);
+
+        // Simple vivid orange pulse from center without LED segmentation.
+        ui_fill_rect(vg, {x + 2, fill_y - 2, w - 4, fill_h + 4}, COLOR_ORANGE_ALPHA(120), 18);
+        ui_fill_rect(vg, {x + 6, fill_y, w - 12, fill_h}, nvgRGBA(255, 160, 0, 245), 14);
+    }
+
     NVGcolor get_tpms_color(float tpms) {
         if (tpms < 5 || tpms > 60) // N/A
             return COLOR_GREEN;
@@ -2937,15 +2964,46 @@ public:
     }
     void draw(UIState *s, int w, int h, NVGcolor bg, NVGcolor bg_long) {
         NVGcontext* vg = s->vg_border;
-
-        ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, bg, 15);
-        ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bg_long, 15);
-
-        ui_fill_rect(vg, {w - 50, h/2 - 95, 50, 190}, (_right_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
-        ui_fill_rect(vg, {0, h/2 - 95, 50, 190}, (_left_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
+        (void)bg;
+        (void)bg_long;
+        blinker_anim_phase = (blinker_anim_phase + 1) % 64;
 
         const SubMaster& sm = *(s->sm);
         auto car_state = sm["carState"].getCarState();
+
+        bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
+        bool scc_active = car_state.getCruiseState().getEnabled();
+        if (!scc_active && sm.alive("selfdriveState")) {
+          scc_active = sm["selfdriveState"].getSelfdriveState().getEnabled();
+        }
+
+        float brake_strength = 0.0f;
+        if (sm.alive("carControl")) {
+          float accel_cmd = sm["carControl"].getCarControl().getActuators().getAccel();
+          brake_strength = std::clamp(-accel_cmd / 3.5f, 0.0f, 1.0f);
+        }
+        brake_strength = std::max(brake_strength, std::clamp(-car_state.getAEgo() / 3.0f, 0.0f, 1.0f));
+        if (car_state.getBrakeLights()) {
+          brake_strength = std::max(brake_strength, 0.25f);
+        }
+
+        NVGcolor top_bar = lat_active ? nvgRGBA(57, 255, 20, 165) : COLOR_BLACK_ALPHA(150);
+        NVGcolor bottom_bar = COLOR_BLACK_ALPHA(150);
+        if (scc_active) {
+          NVGcolor cruise_green = nvgRGBA(57, 255, 20, 165);
+          NVGcolor brake_red = nvgRGBA(255, 30, 30, 210);
+          bottom_bar = lerp_color(cruise_green, brake_red, brake_strength);
+        }
+
+        ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, top_bar, 15);
+        ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bottom_bar, 15);
+
+        int blink_w = 84;
+        int blink_h = 320;
+        int blink_y = h / 2 - blink_h / 2;
+        draw_blinker_lane(vg, w - blink_w, blink_y, blink_w, blink_h, _right_blinker);
+        draw_blinker_lane(vg, 0, blink_y, blink_w, blink_h, _left_blinker);
+
         float a_ego = car_state.getAEgo();
 
         a_ego_width = a_ego_width * 0.5 + (w * std::abs(a_ego) / 4.0) * 0.5;
@@ -3059,7 +3117,7 @@ void ui_draw_border(UIState* s, int w, int h, QColor bg, QColor bg_long) {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glViewport(0, 0, w, h);
     nvgBeginFrame(s->vg_border, w, h, 1.0f);
-	nvgScissor(s->vg_border, 0, 0, w, h);
+    nvgScissor(s->vg_border, 0, 0, w, h);
 
     borderDrawer.draw(s, w, h, QColorToNVGcolor(bg), QColorToNVGcolor(bg_long));
 
