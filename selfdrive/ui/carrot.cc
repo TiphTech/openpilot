@@ -2902,16 +2902,6 @@ protected:
     float steering_angle_pos = 0.0;
     int blinker_anim_phase = 0;
 
-    NVGcolor lerp_color(const NVGcolor& a, const NVGcolor& b, float t) {
-        t = std::clamp(t, 0.0f, 1.0f);
-        return nvgRGBAf(
-            a.r + (b.r - a.r) * t,
-            a.g + (b.g - a.g) * t,
-            a.b + (b.b - a.b) * t,
-            a.a + (b.a - a.a) * t
-        );
-    }
-
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(150), 20);
         if (!active) return;
@@ -2972,27 +2962,15 @@ public:
         auto car_state = sm["carState"].getCarState();
 
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
-        bool scc_active = car_state.getCruiseState().getEnabled();
-        if (!scc_active && sm.alive("selfdriveState")) {
-          scc_active = sm["selfdriveState"].getSelfdriveState().getEnabled();
-        }
 
-        float brake_strength = 0.0f;
-        if (sm.alive("carControl")) {
-          float accel_cmd = sm["carControl"].getCarControl().getActuators().getAccel();
-          brake_strength = std::clamp(-accel_cmd / 3.5f, 0.0f, 1.0f);
-        }
-        brake_strength = std::max(brake_strength, std::clamp(-car_state.getAEgo() / 3.0f, 0.0f, 1.0f));
-        if (car_state.getBrakeLights()) {
-          brake_strength = std::max(brake_strength, 0.25f);
-        }
+        bool brakes_active = car_state.getBrakePressed() || car_state.getBrakeLights();
 
         NVGcolor top_bar = lat_active ? nvgRGBA(57, 255, 20, 165) : COLOR_BLACK_ALPHA(150);
         NVGcolor bottom_bar = COLOR_BLACK_ALPHA(150);
-        if (scc_active) {
-          NVGcolor cruise_green = nvgRGBA(57, 255, 20, 165);
-          NVGcolor brake_red = nvgRGBA(255, 30, 30, 210);
-          bottom_bar = lerp_color(cruise_green, brake_red, brake_strength);
+        if (brakes_active) {
+          bottom_bar = nvgRGBA(255, 20, 20, 230);  // vivid red while braking
+        } else if (lat_active) {
+          bottom_bar = nvgRGBA(57, 255, 20, 165);  // neon green when lateral is active
         }
 
         ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, top_bar, 15);
