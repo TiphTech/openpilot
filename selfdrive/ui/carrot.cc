@@ -2977,7 +2977,7 @@ public:
         ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bottom_bar, 15);
 
         int blink_w = 84;
-        int blink_h = 320;
+        int blink_h = 384;
         int blink_y = h / 2 - blink_h / 2;
         draw_blinker_lane(vg, w - blink_w, blink_y, blink_w, blink_h, _right_blinker);
         draw_blinker_lane(vg, 0, blink_y, blink_w, blink_h, _left_blinker);
