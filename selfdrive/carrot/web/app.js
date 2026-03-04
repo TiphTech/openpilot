@@ -2,7 +2,7 @@ const DEBUG_UI = false;
 
 let SETTINGS = null;
 let CURRENT_GROUP = null;
-let LANG = "ko"; // "ko" | "en" | "zh"
+let LANG = "en"; // "ko" | "en" | "zh"
 
 const UI_STRINGS = {
   ko: {
@@ -1449,4 +1449,3 @@ if (document.readyState === "loading") {
 } else {
   startAll();
 }
-
