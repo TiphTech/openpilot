@@ -2,53 +2,9 @@ const DEBUG_UI = false;
 
 let SETTINGS = null;
 let CURRENT_GROUP = null;
-let LANG = "en"; // "ko" | "en" | "zh"
+const LANG = "en";
 
 const UI_STRINGS = {
-  ko: {
-    home: "홈",
-    setting: "설정",
-    tools: "도구",
-    fleet: "플릿",
-    lang: "언어",
-    server_state: "서버 상태",
-    quick_link: "퀵 링크",
-    car_select: "차량 선택",
-    makers: "제조사",
-    models: "모델",
-    groups: "그룹",
-    items: "항목",
-    back: "뒤로",
-    change: "변경",
-    git_commands: "Git 명령",
-    user_system: "사용자 / 시스템",
-    reboot: "재부팅",
-    backup: "백업",
-    restore: "복구",
-    apply: "적용",
-    confirm_car: "이 차량을 선택하시겠습니까?",
-    confirm_reboot: "지금 재부팅하시겠습니까?",
-    reboot_later: "선택되었습니다. 적용하려면 나중에 재부팅하세요.",
-    rebooting: "재부팅 중...",
-    git_sync_confirm: "Git sync를 실행하시겠습니까?",
-    git_reset_confirm: "Git reset을 실행하시겠습니까? (위험)",
-    delete_videos_confirm: "모든 비디오를 삭제하시겠습니까? (위험)",
-    delete_logs_confirm: "모든 로그를 삭제하시겠습니까? (위험)",
-    select_backup_file: "먼저 백업 json 파일을 선택하세요.",
-    restore_confirm: "파일에서 설정을 복구하시겠습니까?\n\n많은 Params 값이 덮어씌워집니다.",
-    restore_done_reboot: "복구가 완료되었습니다.\n지금 재부팅하시겠습니까?",
-    checkout_confirm: "브랜치를 체크아웃하시겠습니까?",
-    branch_changed: "브랜치가 변경되었습니다.",
-    quick_link_hint: "* 길게 눌러 링크저장",
-    git_hint: "* reset/branch는 위험할 수 있으니 confirm 뜹니다.",
-    sys_hint: "* delete/reboot는 confirm 후 실행합니다.",
-    restore_hint: "* restore 후 reboot 권장",
-    failed_set_car: "차량 선택 저장 실패: ",
-    reboot_failed: "재부팅 실패: ",
-    set_failed: "설정 실패: ",
-    branch_dom_missing: "브랜치 DOM 요소를 찾을 수 없습니다.",
-    fullscreen_not_supported: "이 브라우저는 전체화면을 지원하지 않습니다.",
-  },
   en: {
     home: "Home",
     setting: "Setting",
@@ -92,57 +48,11 @@ const UI_STRINGS = {
     set_failed: "Set failed: ",
     branch_dom_missing: "Branch DOM elements missing.",
     fullscreen_not_supported: "Fullscreen not supported on this browser.",
-  },
-  zh: {
-    home: "首页",
-    setting: "设置",
-    tools: "工具",
-    fleet: "车队",
-    lang: "语言",
-    server_state: "服务器状态",
-    quick_link: "快速链接",
-    car_select: "车辆选择",
-    makers: "制造商",
-    models: "车型",
-    groups: "分组",
-    items: "项",
-    back: "返回",
-    change: "修改",
-    git_commands: "Git 命令",
-    user_system: "用户 / 系统",
-    reboot: "重启",
-    backup: "备份",
-    restore: "还原",
-    apply: "应用",
-    confirm_car: "选择此车辆吗？",
-    confirm_reboot: "现在重启吗？",
-    reboot_later: "已选择。请稍后重启以应用更改。",
-    rebooting: "正在重启...",
-    git_sync_confirm: "执行 Git 同步吗？",
-    git_reset_confirm: "执行 Git 重置吗？（危险）",
-    delete_videos_confirm: "删除所有视频吗？（危险）",
-    delete_logs_confirm: "删除所有日志吗？（危险）",
-    select_backup_file: "请先选择一个备份 JSON 文件。",
-    restore_confirm: "从文件还原设置吗？\n\n这将覆盖许多参数值。",
-    restore_done_reboot: "还原完成。\n现在重启吗？",
-    checkout_confirm: "切换分支吗？",
-    branch_changed: "分支已切换。",
-    quick_link_hint: "* 长按保存链接",
-    git_hint: "* 重置/分支操作会弹出确认提示。",
-    sys_hint: "* 删除/重启操作会弹出确认提示。",
-    restore_hint: "* 还原后建议重启。",
-    failed_set_car: "保存车辆选择失败: ",
-    reboot_failed: "重启失败: ",
-    set_failed: "设置失败: ",
-    branch_dom_missing: "找不到分支 DOM 元素。",
-    fullscreen_not_supported: "此浏览器不支持全屏。",
   }
 };
 
 const DRIVE_MODES = {
-  ko: { normal: "일반", eco: "연비", safe: "안전", sport: "고속" },
   en: { normal: "Normal", eco: "Eco", safe: "Safe", sport: "Sport" },
-  zh: { normal: "标准", eco: "经济", safe: "安全", sport: "运动" }
 };
 
 let UNIT_CYCLE = [1, 2, 5, 10, 50, 100];
@@ -296,19 +206,8 @@ function showCarScreen(which, pushHistory = false) {
 }
 
 function toggleLang() {
-  if (LANG === "ko") LANG = "en";
-  else if (LANG === "en") LANG = "zh";
-  else LANG = "ko";
-
-  langLabel.textContent = LANG.toUpperCase();
-
-  // Update static UI text
-  renderUIText();
-
-  if (SETTINGS) {
-    renderGroups();
-    if (CURRENT_GROUP) renderItems(CURRENT_GROUP);
-  }
+  // English-only UI
+  langLabel.textContent = "EN";
 }
 
 function renderUIText() {
@@ -319,7 +218,7 @@ function renderUIText() {
   setText("btnSetting", s.setting);
   setText("btnTools", s.tools);
   setText("btnFleet", s.fleet);
-  // langLabel is handled in toggleLang
+  langLabel.textContent = "EN";
 
   // Home
   setText("homeTitle", s.home);
@@ -369,9 +268,7 @@ function escapeHtml(s) {
 }
 
 function formatItemText(p, keyKo, keyEn, fallback = "") {
-  if (LANG === "zh") return (p["c" + keyEn.slice(1)] || p[keyEn] || p[keyKo] || fallback);
-  if (LANG === "ko") return (p[keyKo] ?? fallback);
-  return (p[keyEn] ?? p[keyKo] ?? fallback);
+  return (p[keyEn] ?? fallback);
 }
 
 function clamp(v, mn, mx) {
@@ -551,8 +448,7 @@ function renderGroups() {
 
   (SETTINGS.groups || []).forEach(g => {
     let label = g.group;
-    if (LANG === "zh") label = g.cgroup || g.egroup || g.group;
-    else if (LANG === "en") label = g.egroup || g.group;
+    label = g.egroup || g.group;
 
     const b = document.createElement("button");
     b.className = "btn groupBtn";
