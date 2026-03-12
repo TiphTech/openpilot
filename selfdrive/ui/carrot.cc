@@ -2894,7 +2894,7 @@ protected:
     int blinker_anim_phase = 0;
 
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
-        ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(150), 20);
+        ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(230), 0);
         if (!active) return;
 
         float phase = (float)(blinker_anim_phase % 18) / 17.0f;
@@ -2903,9 +2903,9 @@ protected:
         int fill_h = (int)(h * progress);
         int fill_y = (int)(center_y - fill_h / 2.0f);
 
-        // Simple vivid orange pulse from center without LED segmentation.
-        ui_fill_rect(vg, {x + 2, fill_y - 2, w - 4, fill_h + 4}, COLOR_ORANGE_ALPHA(120), 18);
-        ui_fill_rect(vg, {x + 6, fill_y, w - 12, fill_h}, nvgRGBA(255, 160, 0, 245), 14);
+        // Rectangular vivid orange pulse from center.
+        ui_fill_rect(vg, {x + 2, fill_y - 2, w - 4, fill_h + 4}, COLOR_ORANGE_ALPHA(140), 0);
+        ui_fill_rect(vg, {x + 6, fill_y, w - 12, fill_h}, nvgRGBA(255, 160, 0, 245), 0);
     }
 
     NVGcolor get_tpms_color(float tpms) {
