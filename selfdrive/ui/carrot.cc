@@ -585,6 +585,8 @@ private:
     bool    lead_status = false;
     float   radarDist = 0.0;
     float   visionDist = 0.0;
+    float   leadSpeed = 0.0;
+    bool    leadSpeedValid = false;
     int     xState = 0;
     int     trafficState = 0;
 
@@ -634,6 +636,8 @@ protected:
 
         auto lead_one = sm["radarState"].getRadarState().getLeadOne();
         lead_status = lead_one.getStatus();
+        leadSpeedValid = lead_status;
+        leadSpeed = leadSpeedValid ? lead_one.getVLeadK() : 0.0;
         if (lead_status) {
             z = line.getZ()[get_path_length_idx(line, lead_one.getDRel())];
             max_distance = lead_one.getDRel();
@@ -764,32 +768,19 @@ public:
         else draw_dist = true;
 
         if (draw_dist) {
-            //float dist = (getRadarDist() > 0.0) ? getRadarDist() : getVisionDist();
-            //if (dist < 10.0) sprintf(str, "%.1f", dist);
-            //else sprintf(str, "%.0f", dist);
-            //ui_draw_text(s, x, disp_y, str, disp_size, COLOR_WHITE, BOLD);
-            int wStr = 0, w = 80;
-            float dist = radarDist * (s->scene.is_metric ? 1 : METER_TO_FOOT);
             NVGcolor text_color = (xState==0) ? COLOR_WHITE : (xState==1) ? COLOR_GREY : COLOR_GREEN;
-            if (dist > 0.0) {
-                sprintf(str, "%.1f", dist);
-                wStr = 32 * (strlen(str) + 0);
-                ui_fill_rect(s->vg, { (int)(x - w - wStr / 2), (int)(disp_y - 35), wStr, 42 }, isLeadSCC() ? COLOR_RED : COLOR_ORANGE, 15);
-                ui_draw_text(s, x - w, disp_y, str, 40, text_color, BOLD);
-            }
-            dist = visionDist * (s->scene.is_metric ? 1 : METER_TO_FOOT);
-            if (dist > 0.0) {
-                sprintf(str, "%.1f", dist);
-                wStr = 32 * (strlen(str) + 0);
-                ui_fill_rect(s->vg, { (int)(x + w - wStr / 2), (int)(disp_y - 35), wStr, 42 }, COLOR_BLUE, 15);
-                ui_draw_text(s, x + w, disp_y, str, 40, text_color, BOLD);
+            if (leadSpeedValid) {
+                float lead_speed_disp = leadSpeed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
+                sprintf(str, "%.0f", lead_speed_disp);
+                int wStr = 36 * (int)strlen(str);
+                ui_fill_rect(s->vg, { (int)(x - wStr / 2), (int)(disp_y - 35), wStr, 42 }, isLeadSCC() ? COLOR_RED : COLOR_ORANGE, 15);
+                ui_draw_text(s, x, disp_y + 58, str, 60, text_color, BOLD);
             }
         }
         QPolygonF tf_vertext;
         if (tf_distance > 0) {
           tf_vertext.push_back(tf_vertex_left);
           tf_vertext.push_back(tf_vertex_right);
-          ui_draw_line(s, tf_vertext, nullptr, nullptr, 3.0, COLOR_WHITE);
           sprintf(str, "%.1f(%.2f)", tf_distance, t_follow);
           ui_draw_text(s, tf_vertex_right.x(), tf_vertex_right.y(), str, 25, COLOR_WHITE, BOLD);
         }
@@ -2906,7 +2897,7 @@ protected:
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(150), 20);
         if (!active) return;
 
-        float phase = (float)(blinker_anim_phase % 24) / 23.0f;
+        float phase = (float)(blinker_anim_phase % 18) / 17.0f;
         float progress = (phase < 0.5f) ? (phase * 2.0f) : 1.0f;
         float center_y = y + h / 2.0f;
         int fill_h = (int)(h * progress);
@@ -2977,7 +2968,7 @@ public:
         ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bottom_bar, 15);
 
         int blink_w = 84;
-        int blink_h = 384;
+        int blink_h = 420;
         int blink_y = h / 2 - blink_h / 2;
         draw_blinker_lane(vg, w - blink_w, blink_y, blink_w, blink_h, _right_blinker);
         draw_blinker_lane(vg, 0, blink_y, blink_w, blink_h, _left_blinker);
@@ -2995,82 +2986,6 @@ public:
         if (x_st > w - 50) x_st = w - 50;
         if (x_ed > w) x_ed = w;
         ui_fill_rect(vg, { x_st, 0, x_ed - x_st, 30 }, COLOR_ORANGE, 15);
-
-
-        char top[256] = "", top_left[256] = "", top_right[256] = "";
-        char bottom[256] = "", bottom_left[256] = "", bottom_right[256] = "";
-
-        Params params = Params();
-        QString str;
-
-        // top
-        str = QString::fromStdString(car_state.getLogCarrot());
-        sprintf(top, "%s", str.toStdString().c_str());
-        // top_right
-        const auto live_delay = sm["liveDelay"].getLiveDelay();
-        const auto live_torque_params = sm["liveTorqueParameters"].getLiveTorqueParameters();
-        const auto live_params = sm["liveParameters"].getLiveParameters();
-        str.sprintf("LD[%.0f%%,%.2f],LT[%.0f%%,%s](%.2f/%.2f), SR(%.1f,%.1f)",
-            (float)live_delay.getCalPerc(), live_delay.getLateralDelay(),
-            (float)live_torque_params.getCalPerc(), live_torque_params.getLiveValid() ? "ON" : "OFF",
-            live_torque_params.getLatAccelFactorFiltered(), live_torque_params.getFrictionCoefficientFiltered(),
-            live_params.getSteerRatio(), params.getFloat("CustomSR")/10.0);
-        sprintf(top_right, "%s", str.toStdString().c_str());
-
-        //top_left
-        QString carName = QString::fromStdString(params.get("CarName"));
-        bool longitudinal_control = sm["carParams"].getCarParams().getOpenpilotLongitudinalControl();
-        if (params.getInt("HyundaiCameraSCC") > 0) {
-            carName += "(CAMERA SCC)";
-        }
-        else if (longitudinal_control) {
-            carName += " - OP Long";
-        }
-        QString NNFFModelName = QString::fromStdString(params.get("NNFFModelName"));
-        if (NNFFModelName.length() > 0) {
-            carName += ",NNFF";
-        }
-        sprintf(top_left, "%s", carName.toStdString().c_str());
-
-        // bottom
-        const auto lat_plan = sm["lateralPlan"].getLateralPlan();
-        str = lat_plan.getLatDebugText().cStr();
-        strcpy(bottom, str.toStdString().c_str());
-
-        // bottom_left
-        QString gitBranch = QString::fromStdString(params.get("GitBranch"));
-        sprintf(bottom_left, "%s", gitBranch.toStdString().c_str());
-
-        // bottom_right
-        Params params_memory = Params("/dev/shm/params");
-        if (false && carrot_man_debug[0] != 0 && params.getInt("ShowDebugUI") > 0) {
-            strcpy(bottom_right, carrot_man_debug);
-        }
-        else {
-            QString ipAddress = QString::fromStdString(params_memory.get("NetworkAddress"));
-            //extern QString gitBranch;
-            sprintf(bottom_right, "%s", ipAddress.toStdString().c_str());
-        }
-
-        int text_margin = 30;
-        // top
-        nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_TOP);
-        ui_draw_text_vg(vg, w / 2, 0, top, 30, COLOR_WHITE, BOLD);
-        // top left
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_TOP);
-        ui_draw_text_vg(vg, text_margin, 0, top_left, 30, COLOR_WHITE, BOLD);
-        // top right
-        nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_TOP);
-        ui_draw_text_vg(vg, w - text_margin, 0, top_right, 30, COLOR_WHITE, BOLD);
-        // bottom
-        nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text_vg(vg, w / 2, h, bottom, 30, COLOR_WHITE, BOLD);
-        // bottom left
-        nvgTextAlign(vg, NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM);
-        ui_draw_text_vg(vg, text_margin, h, bottom_left, 30, COLOR_WHITE, BOLD);
-        // bottom right
-        nvgTextAlign(vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
-        ui_draw_text_vg(vg, w- text_margin, h, bottom_right, 30, COLOR_WHITE, BOLD);
 
         //drawTpms(s, w, h);
     }
