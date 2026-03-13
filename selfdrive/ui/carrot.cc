@@ -2891,21 +2891,12 @@ class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
     float steering_angle_pos = 0.0;
-    int blinker_anim_phase = 0;
-
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(230), 0);
         if (!active) return;
 
-        float phase = (float)(blinker_anim_phase % 18) / 17.0f;
-        float progress = (phase < 0.5f) ? (phase * 2.0f) : 1.0f;
-        float center_y = y + h / 2.0f;
-        int fill_h = (int)(h * progress);
-        int fill_y = (int)(center_y - fill_h / 2.0f);
-
-        // Rectangular vivid orange pulse from center.
-        ui_fill_rect(vg, {x + 2, fill_y - 2, w - 4, fill_h + 4}, COLOR_ORANGE_ALPHA(140), 0);
-        ui_fill_rect(vg, {x + 6, fill_y, w - 12, fill_h}, nvgRGBA(255, 160, 0, 245), 0);
+        ui_fill_rect(vg, {x + 2, y + 2, w - 4, h - 4}, COLOR_ORANGE_ALPHA(140), 0);
+        ui_fill_rect(vg, {x + 6, y + 6, w - 12, h - 12}, nvgRGBA(255, 160, 0, 245), 0);
     }
 
     NVGcolor get_tpms_color(float tpms) {
@@ -2947,7 +2938,6 @@ public:
         NVGcontext* vg = s->vg_border;
         (void)bg;
         (void)bg_long;
-        blinker_anim_phase = (blinker_anim_phase + 1) % 64;
 
         const SubMaster& sm = *(s->sm);
         auto car_state = sm["carState"].getCarState();
