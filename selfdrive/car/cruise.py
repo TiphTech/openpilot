@@ -577,16 +577,20 @@ class VCruiseCarrot:
         print("lfaButton")
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
-        if self._cancel_button_mode in [1]:
-          self._lat_enabled = False
-          self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
-        self._cruise_cancel_state = True
         if self._hyundai_camera_scc == 2:
-          # In Camera SCC sync mode, keep stock SCC paused instead of letting carrot auto-reactivate it.
+          # On newer Hyundai/Kia camera SCC platforms this button behaves like pause/resume.
+          # Keep stock SCC paused and block carrot re-activation, but do not force a full cancel state.
           self.autoCruiseControl_cancel_timer = max(self.autoCruiseControl_cancel_timer, 20 * 100)
           self._pause_auto_speed_up = True
           self._cruise_ready = False
           self.carrot_cruise_active = False
+          self._add_log("Cruise paused")
+          button_type = ButtonType.unknown
+        else:
+          if self._cancel_button_mode in [1]:
+            self._lat_enabled = False
+            self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+          self._cruise_cancel_state = True
         #self._v_cruise_kph_at_brake = 0
     else:
       if button_type == ButtonType.accelCruise:
@@ -603,16 +607,19 @@ class VCruiseCarrot:
         self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
 
       elif button_type == ButtonType.cancel:
-        self._cruise_cancel_state = True
-        self._lat_enabled = False
         self._paddle_decel_active = False
         if self._hyundai_camera_scc == 2:
           self.autoCruiseControl_cancel_timer = max(self.autoCruiseControl_cancel_timer, 20 * 100)
           self._pause_auto_speed_up = True
           self._cruise_ready = False
           self.carrot_cruise_active = False
-        #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
-        self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+          self._add_log("Cruise paused")
+          button_type = ButtonType.unknown
+        else:
+          self._cruise_cancel_state = True
+          self._lat_enabled = False
+          #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
+          self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
