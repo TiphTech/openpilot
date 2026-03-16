@@ -2934,7 +2934,7 @@ public:
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
         bool brakes_active = car_state.getBrakeLights() || car_state.getBrakePressed() || car_state.getAEgo() <= -0.6f;
         bool low_ambient_light = s->scene.light_sensor >= 0 && s->scene.light_sensor < 40.0f;
-        NVGcolor active_green = low_ambient_light ? nvgRGBA(34, 180, 28, 135) : nvgRGBA(57, 255, 20, 165);
+        NVGcolor active_green = low_ambient_light ? nvgRGBA(22, 120, 34, 110) : nvgRGBA(57, 255, 20, 165);
 
         NVGcolor top_bar = lat_active ? active_green : COLOR_BLACK_ALPHA(150);
         NVGcolor bottom_bar = COLOR_BLACK_ALPHA(150);
