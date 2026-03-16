@@ -186,8 +186,6 @@ void Device::updateBrightness(const UIState &s) {
           UIState* s1 = uiState();
           s1->show_brightness_timer--;
       }
-      else clipped_brightness *= s.show_brightness_ratio;
-      //printf("show_brightness_timer: %d, clipped_brightness = %.2f ratio = %.1f\n", s.show_brightness_timer, clipped_brightness, s.show_brightness_ratio);
   }
 
   int brightness = brightness_filter.update(clipped_brightness);
