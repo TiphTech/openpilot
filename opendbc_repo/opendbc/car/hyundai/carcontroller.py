@@ -147,6 +147,7 @@ class CarController(CarControllerBase):
 
     self.activeCarrot = 0
     self.camera_scc_params = Params().get_int("HyundaiCameraSCC")
+    self.auto_cruise_control_enabled = Params().get_int("AutoCruiseControl") > 0
     self.is_ldws_car = Params().get_bool("IsLdwsCar")
     self.enable_corner_radar = 0
 
@@ -186,6 +187,7 @@ class CarController(CarControllerBase):
         self.steerDeltaDownLC = self.steerDeltaDown
         
       self.soft_hold_mode = 1 if params.get_int("AutoCruiseControl") > 1 else 2
+      self.auto_cruise_control_enabled = params.get_int("AutoCruiseControl") > 0
       self.hapticFeedbackWhenSpeedCamera = int(params.get_int("HapticFeedbackWhenSpeedCamera"))
 
       self.button_spam1 = params.get_int("CruiseButtonTest1")
@@ -500,7 +502,7 @@ class CarController(CarControllerBase):
     self.MainMode_ACC_trigger = max(trigger_min, self.MainMode_ACC_trigger - 1)
     self.LFA_trigger = max(trigger_min, self.LFA_trigger - 1)
     if self.MainMode_ACC_trigger == trigger_min and self.LFA_trigger == trigger_min:
-      if CC.enabled and not CS.MainMode_ACC and CS.out.vEgo > 3.:
+      if self.auto_cruise_control_enabled and CC.enabled and not CS.MainMode_ACC and CS.out.vEgo > 3.:
         self.MainMode_ACC_trigger = trigger_start
       elif CC.latActive and CS.LFA_ICON == 0:
         self.LFA_trigger = trigger_start
@@ -534,7 +536,7 @@ class CarController(CarControllerBase):
 
     if CC.enabled:
       if not CS.out.cruiseState.enabled:
-        if (hud_control.leadVisible or v_ego_kph > 10.0) and self.activateCruise == 0:
+        if self.auto_cruise_control_enabled and (hud_control.leadVisible or v_ego_kph > 10.0) and self.activateCruise == 0:
           send_button = Buttons.RES_ACCEL
           self.activateCruise = 1
           activate_cruise = True
@@ -545,7 +547,7 @@ class CarController(CarControllerBase):
       elif target > current and current < 160 and self.speed_from_pcm != 1:
         send_button = Buttons.RES_ACCEL
     elif CS.out.activateCruise: #CC.cruiseControl.activate:
-      if (hud_control.leadVisible or v_ego_kph > 10.0) and self.activateCruise == 0:
+      if self.auto_cruise_control_enabled and (hud_control.leadVisible or v_ego_kph > 10.0) and self.activateCruise == 0:
         self.activateCruise = 1
         send_button = Buttons.RES_ACCEL
         activate_cruise = True
@@ -636,4 +638,3 @@ class HyundaiJerk:
         self.jerk_l = min(max(1.0, -self.jerk * 2.0), jerk_max_l)
         self.cb_upper = np.clip(0.9 + accel * 0.2, 0, 1.2)
         self.cb_lower = np.clip(0.8 + accel * 0.2, 0, 1.2)
-

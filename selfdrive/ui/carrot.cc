@@ -596,11 +596,6 @@ private:
     int    carrotCruise = 0;
     bool    longActive = false;
 
-    float   t_follow = 0.0;
-    float   tf_distance = 0.0;
-    QPointF tf_vertex_left;
-    QPointF tf_vertex_right;
-
     QPointF lead_two_left;
     QPointF lead_two_right;
     float   lead_two_xl = 0.0;
@@ -702,16 +697,6 @@ protected:
         path_x = (int)path_fx;
         path_y = (int)path_fy;
         path_width = (int)path_fwidth;
-
-
-        t_follow = lp.getTFollow();
-        tf_distance = lp.getDesiredDistance(); // t_follow* v_ego + 6;
-        int tf_idx = get_path_length_idx(line, tf_distance);
-        float tf_y = line.getY()[tf_idx];
-        float tf_z = line.getZ()[tf_idx];
-        _model->mapToScreen(tf_distance, tf_y - 1.0, tf_z + 1.22, &tf_vertex_left);
-        _model->mapToScreen(tf_distance, tf_y + 1.0, tf_z + 1.22, &tf_vertex_right);
-
         return true;
     };
     bool isLeadSCC() {
@@ -771,18 +756,11 @@ public:
             NVGcolor text_color = (xState==0) ? COLOR_WHITE : (xState==1) ? COLOR_GREY : COLOR_GREEN;
             if (leadSpeedValid) {
                 float lead_speed_disp = leadSpeed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
-                sprintf(str, "%.0f", lead_speed_disp);
-                int wStr = 36 * (int)strlen(str);
+                sprintf(str, "%.0f %s", lead_speed_disp, s->scene.is_metric ? "km/h" : "mph");
+                int wStr = 22 * (int)strlen(str);
                 ui_fill_rect(s->vg, { (int)(x - wStr / 2), (int)(disp_y - 35), wStr, 42 }, isLeadSCC() ? COLOR_RED : COLOR_ORANGE, 15);
-                ui_draw_text(s, x, disp_y + 58, str, 60, text_color, BOLD);
+                ui_draw_text(s, x, disp_y + 58, str, 52, text_color, BOLD);
             }
-        }
-        QPolygonF tf_vertext;
-        if (tf_distance > 0) {
-          tf_vertext.push_back(tf_vertex_left);
-          tf_vertext.push_back(tf_vertex_right);
-          sprintf(str, "%.1f(%.2f)", tf_distance, t_follow);
-          ui_draw_text(s, tf_vertex_right.x(), tf_vertex_right.y(), str, 25, COLOR_WHITE, BOLD);
         }
 
 
@@ -2469,26 +2447,38 @@ public:
         xSignType = 1;
 #endif
 
-        //if (active_carrot >= 2 || nGoPosDist > 0) {
         if (true) {
-            dx = bx + 75;
-            dy = by + 175;
             int disp_speed = 0;
-            NVGcolor limit_color = COLOR_GREEN_ALPHA(210);
-            if (xSpdLimit > 0 && xSignType != 22) {
-                disp_speed = (int)(xSpdLimit * ((s->scene.is_metric)?1:KM_TO_MILE) + 0.5);
-                limit_color = (blink_timer <= 8) ? COLOR_RED_ALPHA(210) : COLOR_YELLOW_ALPHA(210);
-                ui_draw_text(s, dx, dy-45, "CAM", 30, COLOR_WHITE, BOLD);
-            }
-            else {
+            bool camera_limit = xSpdLimit > 0 && xSignType != 22;
+            if (camera_limit) {
+                disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
+            } else {
                 disp_speed = nRoadLimitSpeed;
-                    disp_speed = (int)(disp_speed * ((s->scene.is_metric)?1.0:KM_TO_MILE) + 0.5);
-                limit_color = (v_ego * 3.6 > disp_speed + 2) ? COLOR_RED_ALPHA(210) : COLOR_WHITE_ALPHA(210);
-                ui_draw_text(s, dx, dy - 45, "LIMIT", 30, COLOR_WHITE, BOLD);
+                disp_speed = (int)(disp_speed * ((s->scene.is_metric) ? 1.0 : KM_TO_MILE) + 0.5);
             }
 
-            ui_fill_rect(s->vg, { dx - 55, dy - 38, 110, 48 }, limit_color, 15, 2);
-            ui_draw_text(s, dx, dy, QString::number(disp_speed).toStdString().c_str(), 40, COLOR_WHITE, BOLD);
+            int sign_x = 145;
+            int sign_y = 145;
+            int outer_r = 68;
+            int inner_r = 52;
+            int sign_size = outer_r * 2;
+
+            nvgBeginPath(s->vg);
+            nvgCircle(s->vg, sign_x, sign_y, outer_r);
+            nvgFillColor(s->vg, COLOR_RED);
+            nvgFill(s->vg);
+
+            nvgBeginPath(s->vg);
+            nvgCircle(s->vg, sign_x, sign_y, inner_r);
+            nvgFillColor(s->vg, COLOR_WHITE);
+            nvgFill(s->vg);
+
+            ui_draw_text(s, sign_x, sign_y + 18, QString::number(disp_speed).toStdString().c_str(), 56, COLOR_BLACK, BOLD, 0.0f, 0.0f);
+            if (camera_limit) {
+              int cam_x = sign_x + outer_r + 16;
+              int cam_y = sign_y - outer_r;
+              ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
+            }
         }
 
         if (show_device_state) {
@@ -2890,6 +2880,7 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
+    float   a_ego_filtered = 0.0;
     float steering_angle_pos = 0.0;
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(230), 0);
@@ -2943,15 +2934,16 @@ public:
         auto car_state = sm["carState"].getCarState();
 
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
+        bool brakes_active = car_state.getBrakeLights();
+        bool low_ambient_light = s->scene.light_sensor >= 0 && s->scene.light_sensor < 40.0f;
+        NVGcolor active_green = low_ambient_light ? nvgRGBA(34, 180, 28, 135) : nvgRGBA(57, 255, 20, 165);
 
-        bool brakes_active = car_state.getBrakePressed() || car_state.getBrakeLights();
-
-        NVGcolor top_bar = lat_active ? nvgRGBA(57, 255, 20, 165) : COLOR_BLACK_ALPHA(150);
+        NVGcolor top_bar = lat_active ? active_green : COLOR_BLACK_ALPHA(150);
         NVGcolor bottom_bar = COLOR_BLACK_ALPHA(150);
         if (brakes_active) {
           bottom_bar = nvgRGBA(255, 20, 20, 230);  // vivid red while braking
         } else if (lat_active) {
-          bottom_bar = nvgRGBA(57, 255, 20, 165);  // neon green when lateral is active
+          bottom_bar = active_green;
         }
 
         ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, top_bar, 15);
@@ -2964,9 +2956,17 @@ public:
         draw_blinker_lane(vg, 0, blink_y, blink_w, blink_h, _left_blinker);
 
         float a_ego = car_state.getAEgo();
+        float a_ego_abs = std::abs(a_ego);
+        float a_ego_target = a_ego_abs < 0.18f ? 0.0f : a_ego;
 
-        a_ego_width = a_ego_width * 0.5 + (w * std::abs(a_ego) / 4.0) * 0.5;
-        ui_fill_rect(vg, { w/2 - (int)(a_ego_width / 2), h - 30, (int)a_ego_width, 30 }, (a_ego >= 0)? COLOR_YELLOW : COLOR_RED, 15);
+        // Reduce flicker on small accel changes with a deadzone and slower low-pass filter.
+        a_ego_filtered = a_ego_filtered * 0.88f + a_ego_target * 0.12f;
+        if (std::abs(a_ego_filtered) < 0.08f) {
+          a_ego_filtered = 0.0f;
+        }
+
+        a_ego_width = a_ego_width * 0.88f + (w * std::abs(a_ego_filtered) / 4.0f) * 0.12f;
+        ui_fill_rect(vg, { w/2 - (int)(a_ego_width / 2), h - 30, (int)a_ego_width, 30 }, (a_ego_filtered >= 0)? COLOR_BLUE : COLOR_RED, 15);
 
         steering_angle_pos = steering_angle_pos * 0.5 + (w / 2. - w / 2. * car_state.getSteeringAngleDeg() / 90) * 0.5;
         int x_st = (int)steering_angle_pos - 50;
@@ -3061,6 +3061,7 @@ void ui_nvg_init(UIState *s) {
   {"ic_tire", "../assets/images/img_tire.png"},
   {"ic_road_speed", "../assets/images/road_speed.png"},
   {"ic_speed_bump", "../assets/images/speed_bump.png"},
+  {"ic_speedcam", "../assets/speedcam.png"},
   {"ic_nda", "../assets/images/img_nda.png"},
   {"ic_navi","../assets/images/img_navi.png"},
   {"ic_scc2", "../assets/images/img_scc2.png"},

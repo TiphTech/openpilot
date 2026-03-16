@@ -175,6 +175,9 @@ void Device::updateBrightness(const UIState &s) {
 
     // Scale back to 10% to 100%
     clipped_brightness = std::clamp(100.0f * clipped_brightness, 10.0f, 100.0f);
+
+    // Use a simple day/night brightness split driven by the ambient light sensor.
+    clipped_brightness = clipped_brightness >= 60.0f ? 90.0f : 50.0f;
   }
 
   if (s.scene.started) {

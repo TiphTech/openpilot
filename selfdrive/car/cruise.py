@@ -172,6 +172,7 @@ class VCruiseCarrot:
     self._cruise_button_mode = 2
     self._cancel_button_mode = 0
     self._lfa_button_mode = 0
+    self._hyundai_camera_scc = 0
 
     self._gas_pressed_count = 0
     self._gas_pressed_count_last = 0
@@ -261,6 +262,7 @@ class VCruiseCarrot:
       self._cruise_button_mode = self.params.get_int("CruiseButtonMode")
       self._cancel_button_mode = self.params.get_int("CancelButtonMode")
       self._lfa_button_mode = self.params.get_int("LfaButtonMode")
+      self._hyundai_camera_scc = self.params.get_int("HyundaiCameraSCC")
       self.autoRoadSpeedLimitOffset = self.params.get_int("AutoRoadSpeedLimitOffset")
       self.autoNaviSpeedSafetyFactor = self.params.get_float("AutoNaviSpeedSafetyFactor") * 0.01
       self.cruiseOnDist = self.params.get_float("CruiseOnDist") * 0.01
@@ -579,6 +581,12 @@ class VCruiseCarrot:
           self._lat_enabled = False
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
         self._cruise_cancel_state = True
+        if self._hyundai_camera_scc == 2:
+          # In Camera SCC sync mode, keep stock SCC paused instead of letting carrot auto-reactivate it.
+          self.autoCruiseControl_cancel_timer = max(self.autoCruiseControl_cancel_timer, 20 * 100)
+          self._pause_auto_speed_up = True
+          self._cruise_ready = False
+          self.carrot_cruise_active = False
         #self._v_cruise_kph_at_brake = 0
     else:
       if button_type == ButtonType.accelCruise:
@@ -598,6 +606,11 @@ class VCruiseCarrot:
         self._cruise_cancel_state = True
         self._lat_enabled = False
         self._paddle_decel_active = False
+        if self._hyundai_camera_scc == 2:
+          self.autoCruiseControl_cancel_timer = max(self.autoCruiseControl_cancel_timer, 20 * 100)
+          self._pause_auto_speed_up = True
+          self._cruise_ready = False
+          self.carrot_cruise_active = False
         #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
         self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
 
