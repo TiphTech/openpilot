@@ -178,7 +178,7 @@ void Device::updateBrightness(const UIState &s) {
     clipped_brightness = std::clamp(100.0f * clipped_brightness, 10.0f, 100.0f);
 
     // Use the raw ambient-light reading for a stable day/night split.
-    clipped_brightness = ambient_light >= 45.0f ? 90.0f : 50.0f;
+    clipped_brightness = ambient_light >= 45.0f ? 90.0f : 40.0f;
   }
 
   if (s.scene.started) {
@@ -186,6 +186,7 @@ void Device::updateBrightness(const UIState &s) {
           UIState* s1 = uiState();
           s1->show_brightness_timer--;
       }
+      else clipped_brightness *= s.show_brightness_ratio;
   }
 
   int brightness = brightness_filter.update(clipped_brightness);
