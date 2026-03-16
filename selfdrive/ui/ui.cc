@@ -164,7 +164,8 @@ void Device::resetInteractiveTimeout(int timeout) {
 void Device::updateBrightness(const UIState &s) {
   float clipped_brightness = offroad_brightness;
   if (s.scene.started && s.scene.light_sensor >= 0) {
-    clipped_brightness = s.scene.light_sensor;
+    const float ambient_light = s.scene.light_sensor;
+    clipped_brightness = ambient_light;
 
     // CIE 1931 - https://www.photonstophotos.net/GeneralTopics/Exposure/Psychometric_Lightness_and_Gamma.htm
     if (clipped_brightness <= 8) {
@@ -176,8 +177,8 @@ void Device::updateBrightness(const UIState &s) {
     // Scale back to 10% to 100%
     clipped_brightness = std::clamp(100.0f * clipped_brightness, 10.0f, 100.0f);
 
-    // Use a simple day/night brightness split driven by the ambient light sensor.
-    clipped_brightness = clipped_brightness >= 60.0f ? 90.0f : 50.0f;
+    // Use the raw ambient-light reading for a stable day/night split.
+    clipped_brightness = ambient_light >= 45.0f ? 90.0f : 50.0f;
   }
 
   if (s.scene.started) {

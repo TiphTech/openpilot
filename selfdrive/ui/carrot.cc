@@ -757,8 +757,6 @@ public:
             if (leadSpeedValid) {
                 float lead_speed_disp = leadSpeed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
                 sprintf(str, "%.0f %s", lead_speed_disp, s->scene.is_metric ? "km/h" : "mph");
-                int wStr = 22 * (int)strlen(str);
-                ui_fill_rect(s->vg, { (int)(x - wStr / 2), (int)(disp_y - 35), wStr, 42 }, isLeadSCC() ? COLOR_RED : COLOR_ORANGE, 15);
                 ui_draw_text(s, x, disp_y + 58, str, 52, text_color, BOLD);
             }
         }
@@ -2934,7 +2932,7 @@ public:
         auto car_state = sm["carState"].getCarState();
 
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
-        bool brakes_active = car_state.getBrakeLights();
+        bool brakes_active = car_state.getBrakeLights() || car_state.getBrakePressed() || car_state.getAEgo() <= -0.6f;
         bool low_ambient_light = s->scene.light_sensor >= 0 && s->scene.light_sensor < 40.0f;
         NVGcolor active_green = low_ambient_light ? nvgRGBA(34, 180, 28, 135) : nvgRGBA(57, 255, 20, 165);
 
