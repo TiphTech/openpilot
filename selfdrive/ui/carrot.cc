@@ -2880,6 +2880,7 @@ protected:
     float   a_ego_width = 0.0;
     float   a_ego_filtered = 0.0;
     float steering_angle_pos = 0.0;
+    int     brake_bar_hold_frames = 0;
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(230), 0);
         if (!active) return;
@@ -2932,8 +2933,14 @@ public:
         auto car_state = sm["carState"].getCarState();
 
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
-        bool brakes_active = car_state.getBrakeLights() || car_state.getBrakePressed() || car_state.getAEgo() <= -0.6f;
-        bool low_ambient_light = s->scene.light_sensor >= 0 && s->scene.light_sensor < 40.0f;
+        bool brakes_active_raw = car_state.getBrakeLights() || car_state.getBrakePressed() || car_state.getAEgo() <= -0.6f;
+        if (brakes_active_raw) {
+          brake_bar_hold_frames = UI_FREQ;
+        } else if (brake_bar_hold_frames > 0) {
+          brake_bar_hold_frames--;
+        }
+        bool brakes_active = brake_bar_hold_frames > 0;
+        bool low_ambient_light = s->scene.light_sensor >= 0 && s->scene.light_sensor < 55.0f;
         NVGcolor active_green = low_ambient_light ? nvgRGBA(22, 120, 34, 110) : nvgRGBA(57, 255, 20, 165);
 
         NVGcolor top_bar = lat_active ? active_green : COLOR_BLACK_ALPHA(150);

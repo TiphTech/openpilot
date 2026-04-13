@@ -431,8 +431,9 @@ class CarController(CarControllerBase):
     can_sends = []
     if CS.out.brakePressed or CS.out.brakeHoldActive:
       return can_sends
+    stock_pause_button = self.camera_scc_params == 2 and CS.cruise_buttons[-1] == Buttons.CANCEL
     if use_clu11:
-      if CC.cruiseControl.cancel:
+      if CC.cruiseControl.cancel and not stock_pause_button:
         can_sends.append(hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.CANCEL, self.CP))
       elif False: #CC.cruiseControl.resume:
         # send resume at a max freq of 10Hz
@@ -463,7 +464,7 @@ class CarController(CarControllerBase):
 
       if (self.frame - self.last_button_frame) * DT_CTRL > 0.25:
         # cruise cancel
-        if CC.cruiseControl.cancel:
+        if CC.cruiseControl.cancel and not stock_pause_button:
           if (self.frame - self.last_button_frame) * DT_CTRL > 0.1:
             print("cruiseControl.cancel222222")
             if self.CP.flags & HyundaiFlags.CANFD_ALT_BUTTONS:
