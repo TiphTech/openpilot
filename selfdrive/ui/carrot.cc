@@ -1940,6 +1940,7 @@ public:
     int     nRoadLimitSpeed = 30;
     int     nGoPosDist = 0;
     int     xSpdLimit = 0;
+    int     xSpdDist = 0;
     int     xSignType = -1;
     QPointF nav_path_vertex[150];
     QPointF nav_path_vertex_xy[150];
@@ -1982,6 +1983,7 @@ public:
             szPosRoadName = QString::fromStdString(carrot_man.getSzPosRoadName());
             nRoadLimitSpeed = carrot_man.getNRoadLimitSpeed();
             xSpdLimit = carrot_man.getXSpdLimit();
+            xSpdDist = carrot_man.getXSpdDist();
             xSignType = carrot_man.getXSpdType();
             nGoPosDist = carrot_man.getNGoPosDist();
             QString atcType = QString::fromStdString(carrot_man.getAtcType());
@@ -2024,15 +2026,18 @@ public:
                 atcType.toStdString().c_str(),
                 carrot_man.getTrafficState());
         }
-            else {
+		    else {
           active_carrot = 0;
-                apply_speed = 250.0;
+			    apply_speed = 250.0;
           apply_source = "";
           carrot_man_debug[0] = 0;
           szPosRoadName = "";
           nRoadLimitSpeed = 30;
           nGoPosDist = 0;
-            }
+          xSpdLimit = 0;
+          xSpdDist = 0;
+          xSignType = 0;
+		    }
 
         xState = lp.getXState();
         trafficState = lp.getTrafficState();
