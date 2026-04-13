@@ -2448,6 +2448,7 @@ public:
         if (true) {
             int disp_speed = 0;
             bool camera_limit = xSpdLimit > 0 && xSignType != 22;
+            bool speed_camera_ahead = xSpdDist > 0 && xSignType != 22;
             if (camera_limit) {
                 disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
@@ -2457,8 +2458,8 @@ public:
 
             int sign_x = 145;
             int sign_y = 145;
-            int outer_r = 68;
-            int inner_r = 52;
+            int outer_r = 76;
+            int inner_r = 59;
             int sign_size = outer_r * 2;
 
             nvgBeginPath(s->vg);
@@ -2471,8 +2472,10 @@ public:
             nvgFillColor(s->vg, COLOR_WHITE);
             nvgFill(s->vg);
 
-            ui_draw_text(s, sign_x, sign_y + 18, QString::number(disp_speed).toStdString().c_str(), 56, COLOR_BLACK, BOLD, 0.0f, 0.0f);
-            if (camera_limit) {
+            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+            ui_draw_text(s, sign_x, sign_y - 6, QString::number(disp_speed).toStdString().c_str(), 56, COLOR_BLACK, BOLD, 0.0f, 0.0f);
+            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+            if (speed_camera_ahead) {
               int cam_x = sign_x + outer_r + 16;
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
