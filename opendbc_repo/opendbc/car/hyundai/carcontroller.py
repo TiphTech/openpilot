@@ -141,6 +141,8 @@ class CarController(CarControllerBase):
     self.lkas_max_torque = 0
     self.angle_max_torque = 250
 
+    self.lkas11_active = False
+
     self.canfd_debug = 0
     self.MainMode_ACC_trigger = 0
     self.LFA_trigger = 0
@@ -330,8 +332,10 @@ class CarController(CarControllerBase):
         can_sends.extend(hyundaicanfd.create_suppress_lfa(self.packer, self.CAN, CS))
 
       # LFA and HDA icons
-      if self.frame % 5 == 0 and camera_scc:
+      if self.frame % 5 == 0 and (not hda2 or hda2_long or camera_scc):
         can_sends.extend(hyundaicanfd.create_lfahda_cluster(self.packer, CS, self.CAN, CC.longActive, CC.latActive))
+        if not camera_scc:
+          can_sends.extend(hyundaicanfd.create_lfa_icon_non_camera_scc(self.packer, CS, self.CAN, CC))
 
       # blinkers
       if hda2 and self.CP.flags & HyundaiFlags.ENABLE_BLINKERS:
@@ -344,7 +348,7 @@ class CarController(CarControllerBase):
         self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
 
         if True: #not camera_scc:
-          can_sends.extend(hyundaicanfd.create_ccnc_messages(self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle, left_lane_warning, right_lane_warning, self.enable_corner_radar))
+          can_sends.extend(hyundaicanfd.create_ccnc_messages(self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle, left_lane_warning, right_lane_warning, self.enable_corner_radar, stopping, self.canfd_debug))
           if hda2:
             can_sends.extend(hyundaicanfd.create_adrv_messages(self.CP, self.packer, self.CAN, self.frame))
           else:
@@ -369,10 +373,12 @@ class CarController(CarControllerBase):
           can_sends.extend(self.create_button_messages(CC, CS, use_clu11=False))
     else:
       if CS.lkas11 is not None:
-        can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
-                                                  torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
-                                                  hud_control.leftLaneVisible, hud_control.rightLaneVisible,
-                                                  left_lane_warning, right_lane_warning, self.is_ldws_car))
+        if self.lkas11_active:
+          can_sends.append(hyundaican.create_lkas11(self.packer, self.frame, self.CP, apply_torque, apply_steer_req,
+                                                    torque_fault, CS.lkas11, sys_warning, sys_state, CC.enabled,
+                                                    hud_control.leftLaneVisible, hud_control.rightLaneVisible,
+                                                    left_lane_warning, right_lane_warning, self.is_ldws_car))
+        self.lkas11_active = True
 
       if not self.CP.openpilotLongitudinalControl:
         can_sends.extend(self.create_button_messages(CC, CS, use_clu11=True))
@@ -633,7 +639,7 @@ class HyundaiJerk:
         self.cb_upper = self.cb_lower = 0.0
       else:
         self.jerk_u = min(max(self.jerk_u_min, self.jerk * 2.0), jerk_max_u)
-        self.jerk_l = min(max(1.0, -self.jerk * 2.0), jerk_max_l)
+        self.jerk_l = min(max(1.0, -self.jerk * 4.0), jerk_max_l)
         self.cb_upper = np.clip(0.9 + accel * 0.2, 0, 1.2)
         self.cb_lower = np.clip(0.8 + accel * 0.2, 0, 1.2)
 

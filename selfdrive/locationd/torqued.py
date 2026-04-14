@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import numpy as np
+import time
 from collections import deque, defaultdict
 
 import cereal.messaging as messaging
@@ -33,7 +34,7 @@ MIN_BUCKET_POINTS = np.array([100, 300, 500, 500, 500, 500, 300, 100])
 MIN_ENGAGE_BUFFER = 2  # secs
 
 VERSION = 1  # bump this to invalidate old parameter caches
-ALLOWED_CARS = ['toyota', 'hyundai', 'rivian', 'honda']
+ALLOWED_CARS = ['toyota', 'hyundai', 'rivian', 'honda', 'volkswagen']
 
 
 def slope2rot(slope):
@@ -243,30 +244,62 @@ class TorqueEstimator(ParameterEstimator):
 def main(demo=False):
   config_realtime_process([0, 1, 2, 3], 5)
 
+  DEBUG = bool(int(os.getenv("DEBUG", "0")))
+
   pm = messaging.PubMaster(['liveTorqueParameters'])
   sm = messaging.SubMaster(['carControl', 'carOutput', 'carState', 'liveCalibration', 'livePose', 'liveDelay'], poll='livePose')
 
   params = Params()
   estimator = TorqueEstimator(messaging.log_from_bytes(params.get("CarParams", block=True), car.CarParams))
 
+  last_fail_print_t = 0.0
+
+  show_debug = False
   while True:
     sm.update()
-    if sm.all_checks():
+
+    ok_alive = sm.all_alive()
+    ok_freq = sm.all_freq_ok()
+    ok_valid = sm.all_valid()
+    ok_all = ok_alive and ok_freq and ok_valid
+
+    if ok_all:
       for which in sm.updated.keys():
         if sm.updated[which]:
           t = sm.logMonoTime[which] * 1e-9
           estimator.handle_log(t, which, sm[which])
+    elif show_debug:
+      now = time.monotonic()
+
+      # 너무 많이 찍히지 않게 1초에 1번만
+      if now - last_fail_print_t > 1.0:
+        last_fail_print_t = now
+
+        print(f"\n[liveTorque all_checks FAIL] frame={sm.frame} "
+              f"alive={ok_alive} freq={ok_freq} valid={ok_valid}")
+
+        for s in sm.services:
+          recv_age_ms = (now - sm.recv_time[s]) * 1000.0 if sm.recv_time[s] > 0 else -1.0
+          print(
+            f"  {s:16s} "
+            f"seen={sm.seen[s]} "
+            f"updated={sm.updated[s]} "
+            f"alive={sm.alive[s]} "
+            f"freq_ok={sm.freq_ok[s]} "
+            f"valid={sm.valid[s]} "
+            f"recv_age_ms={recv_age_ms:7.1f} "
+            f"logMonoTime={sm.logMonoTime[s]}"
+          )
 
     # 4Hz driven by livePose
     if sm.frame % 5 == 0:
-      pm.send('liveTorqueParameters', estimator.get_msg(valid=sm.all_checks()))
+      pm.send('liveTorqueParameters', estimator.get_msg(valid=ok_all))
 
     # Cache points every 60 seconds while onroad
     if sm.frame % 240 == 0:
-      msg = estimator.get_msg(valid=sm.all_checks(), with_points=True)
+      msg = estimator.get_msg(valid=ok_all, with_points=True)
       params.put_nonblocking("LiveTorqueParameters", msg.to_bytes())
-
-
+      
 if __name__ == "__main__":
   import argparse
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import math
+import time
 from typing import SupportsFloat
 
 from cereal import car, log

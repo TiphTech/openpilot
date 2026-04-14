@@ -18,6 +18,22 @@
       "cdescr": "仅限车道模式 — (-)左侧 / (+)右侧"
     },
     {
+      "group": "조향일반",
+      "name": "CameraYawTrimDeg",
+      "title": "카메라YAW보정*0.01deg(0)",
+      "descr": "카메라 좌우(YAW) 값을 미세조정(+: 오른쪽)",
+      "egroup": "LAT",
+      "etitle": "Camera YAW Correction(0)",
+      "edescr": "Fine tunes camera yaw alignment.(+: right)",
+      "min": -200,
+      "max": 200,
+      "default": 0,
+      "unit": 1,
+      "cgroup": "转向",
+      "ctitle": "摄像头YAW校正(0)",
+      "cdescr": "微调摄像头左右(YAW)值(+: right)"
+    },
+    {
       "group": "조향튜닝",
       "name": "LateralTorqueCustom",
       "title": "_LateralTorqueCustom(0)",
@@ -416,22 +432,6 @@
       "cgroup": "巡航设置",
       "ctitle": "胡萝卜巡航 ATC 减速度(-1)",
       "cdescr": "胡萝卜巡航 ATC 减速度设置，-1: 不改变"
-    },
-    {
-      "group": "크루즈",
-      "name": "CommaLongAcc",
-      "title": "콤마크루즈(0)",
-      "descr": "콤마 롱컨트롤 사용",
-      "egroup": "CRUISE",
-      "etitle": "Use Comma Long",
-      "edescr": "",
-      "min": 0,
-      "max": 1,
-      "default": 0,
-      "unit": 1,
-      "cgroup": "巡航设置",
-      "ctitle": "使用 Comma 纵向控制",
-      "cdescr": ""
     },
     {
       "group": "조향튜닝",
@@ -947,6 +947,22 @@
     },
     {
       "group": "버튼설정",
+      "name": "CruiseButtonLongDelay",
+      "title": "크루즈버튼롱딜레이(40)",
+      "descr": "버튼을 길게 눌렀을 때 기능이 작동하기 전까지의 지연 시간입니다.",
+      "egroup": "Button Settings",
+      "etitle": "Cruise Button Long Delay (40)",
+      "edescr": "Delay before the long-press action is triggered.",
+      "min": 30,
+      "max": 100,
+      "default": 40,
+      "unit": 10,
+      "cgroup": "按键设置",
+      "ctitle": "巡航按键长按延迟(40)",
+      "cdescr": "长按按钮后，功能触发前的延迟时间。"
+    },
+    {
+      "group": "버튼설정",
       "name": "CruiseSpeedUnitBasic",
       "title": "크루즈버튼속도단위 기본(1)",
       "descr": "크루즈버튼 속도조절 단위(기본단위)",
@@ -1314,6 +1330,22 @@
       "cdescr": "如果踩下油门且速度超过设定速度，则更新设定速度"
     },
     {
+      "group": "크루즈",
+      "name": "ApplyModelSpeed",
+      "title": "모델 주행속도 적용 비율",
+      "descr": "모델이 계산한 주행속도를 설정한 비율만큼 적용합니다.",
+      "egroup": "CRUISE",
+      "etitle": "Model Speed Apply Ratio",
+      "edescr": "Applies the model-calculated driving speed by the set ratio.",
+      "min": -120,
+      "max": 120,
+      "default": 0,
+      "unit": 1,
+      "cgroup": "巡航设置",
+      "ctitle": "模型车速应用比例",
+      "cdescr": "按设定比例应用模型计算的行驶速度。"
+    },
+    {
       "group": "화면",
       "name": "ShowDebugUI",
       "title": "디버그정보 표시",
@@ -1650,6 +1682,22 @@
       "cdescr": "0: BSD 检测 (允许转向力矩), 1: 阻止转向力矩, -1: 忽略 BSD"
     },
     {
+      "group": "조향일반",
+      "name": "LaneLineCheck",
+      "title": "차선변경 차선판단",
+      "descr": "0: 색상+타입(노란선차단)\n1: 타입만(점선/실선)\n2: 타입만+실선토크override",
+      "egroup": "LAT",
+      "etitle": "LaneChange LineCheck",
+      "edescr": "0: Color+Type(block yellow), 1: Type only, 2: Type+torque override solid",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "unit": 1,
+      "cgroup": "转向",
+      "ctitle": "变道车道判断",
+      "cdescr": "0: 颜色+类型(黄线阻止), 1: 仅类型(虚线/实线), 2: 仅类型+实线扭矩override"
+    },
+    {
       "group": "시작",
       "name": "HapticFeedbackWhenSpeedCamera",
       "title": "핸들햅틱기능사용(0)",
@@ -1717,17 +1765,17 @@
       "group": "시작",
       "name": "CanfdHDA2",
       "title": "CANFD HDA2지원(0)",
-      "descr": "1: HDA2 차량\n 2: HDA2 + BSM 차량",
+      "descr": "1: HDA2 차량",
       "egroup": "START",
       "etitle": "CANFD HDA2(0)",
-      "edescr": "0:HDA1, 1: HDA2, 2: HDA2+BSM",
+      "edescr": "0:HDA1, 1: HDA2",
       "min": 0,
-      "max": 2,
+      "max": 1,
       "default": 0,
       "unit": 1,
       "cgroup": "启动设置",
       "ctitle": "CANFD HDA2 (0)",
-      "cdescr": "0: HDA1, 1: HDA2, 2: HDA2+BSM"
+      "cdescr": "0: HDA1, 1: HDA2"
     },
     {
       "group": "시작",
@@ -1749,10 +1797,10 @@
       "group": "시작",
       "name": "EnableRadarTracks",
       "title": "레이더트랙,SCC레이더설정(0)",
-      "descr": "-1: SCC사용(정지차), 0: SCC레이더사용\n 1: 레이더트랙, 2: 레이더트랙(SCC사용)\n 3:레이더트랙(끼어들기,스텔스차량검출)",
+      "descr": "-1: SCC사용(always), 0: SCC레이더사용\n 1: 레이더트랙, 2: 레이더트랙(정지차 SCC사용)\n 3:레이더트랙(끼어들기,스텔스차량검출)",
       "egroup": "START",
       "etitle": "Enable radar tracks(0)",
-      "edescr": "-1: use SCC(Stopped car), 0: SCC Radar\n, 1: RadarTrack, 2: RadarTrack(use SCC)\n 3:RadarTrack(Cutin detect and etc)",
+      "edescr": "-1: use SCC(always), 0: SCC Radar\n, 1: RadarTrack, 2: RadarTrack(stopped car, use SCC)\n 3:RadarTrack(Cutin detect and etc)",
       "min": -1,
       "max": 3,
       "default": 0,
@@ -1925,17 +1973,17 @@
       "group": "차량간격",
       "name": "DynamicTFollow",
       "title": "동적 차간거리 설정(0)",
-      "descr": "선행차와 거리에따른 동적 설정",
+      "descr": "선행차의 움직임 변화에 따라 차간거리를 동적으로 조절",
       "egroup": "FDIST",
       "etitle": "Dynamic TFollow",
-      "edescr": "Dynamic setting based on distance to lead vehicle",
+      "edescr": "Dynamically adjusts following distance based on changes in lead vehicle motion",
       "min": 0,
       "max": 100,
       "default": 0,
       "unit": 1,
       "cgroup": "跟车距离",
       "ctitle": "动态跟车时间",
-      "cdescr": "根据与前车距离的动态设置"
+      "cdescr": "根据前车运动变化动态调整跟车距离"
     },
     {
       "group": "차량간격",
@@ -1968,6 +2016,22 @@
       "cgroup": "跟车距离",
       "ctitle": "变道动态跟车时间 (100)%",
       "cdescr": "变道开始时临时缩小车距"
+    },
+    {
+      "group": "차량간격",
+      "name": "TFollowDecelBoost",
+      "title": "감속TFollow부스트비율(30)",
+      "descr": "감속 중 TF 추가 확보 비율. 값이 클수록 감속 시 차간거리를 더 여유있게 유지합니다.",
+      "egroup": "FDIST",
+      "etitle": "Decel TF Boost Ratio (30)",
+      "edescr": "Extra t_follow boost ratio during deceleration. Higher values keep more following distance while slowing down.",
+      "min": 0,
+      "max": 100,
+      "default": 10,
+      "unit": 10,
+      "cgroup": "跟车距离",
+      "ctitle": "减速TF增益比例(30)",
+      "cdescr": "减速时额外增加 t_follow 的比例。数值越大，减速时跟车距离越宽松。"
     },
     {
       "group": "감속제어",
@@ -2176,22 +2240,6 @@
       "cgroup": "速度控制",
       "ctitle": "转向速度控制模式",
       "cdescr": "0: 不使用, 1: 视觉, 2: 视觉 + 路线, 3: 路线 (始终)"
-    },
-    {
-      "group": "감속제어",
-      "name": "CarrotSmartSpeedControl",
-      "title": "스마트속도제어(속도재생)",
-      "descr": "0: 속도제어안함\n 1: 가속만, 2: 감속만, 3: 모두",
-      "egroup": "SPEED",
-      "etitle": "Smart Speed Control(Replay)",
-      "edescr": "0:not use, 1:accel, 2:decel, 3:all",
-      "min": 0,
-      "max": 3,
-      "default": 0,
-      "unit": 1,
-      "cgroup": "速度控制",
-      "ctitle": "智能速度控制 (回放)",
-      "cdescr": "0: 不使用, 1: 仅加速, 2: 仅减速, 3: 全部"
     },
     {
       "group": "감속제어",

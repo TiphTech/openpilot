@@ -128,6 +128,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     // carrot
     {"LongitudinalPersonalityMax", {PERSISTENT, INT, "3"}},
     {"NetworkAddress", {CLEAR_ON_MANAGER_START, STRING}},
+    {"ScreenRecord", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, BOOL} },
 
     {"ApiCache_NavDestinations", {PERSISTENT, STRING}},
     {"NavDestination", {CLEAR_ON_MANAGER_START | CLEAR_ON_OFFROAD_TRANSITION, STRING}},
@@ -166,10 +167,10 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CruiseEcoControl", {PERSISTENT, INT, "2"}},
     {"CarrotCruiseDecel", {PERSISTENT, INT, "-1"}},
     {"CarrotCruiseAtcDecel", {PERSISTENT, INT, "-1"}},
-    {"CommaLongAcc", {PERSISTENT, INT, "0"}},
 
     {"AutoGasTokSpeed", {PERSISTENT, INT, "0"}},
-    {"AutoGasSyncSpeed", {PERSISTENT, INT, "1"}},
+    {"AutoGasSyncSpeed", {PERSISTENT, INT, "1"} },
+    {"ApplyModelSpeed", {PERSISTENT, INT, "0"} },
     {"AutoEngage", {PERSISTENT, INT, "0"}},
     {"DisableMinSteerSpeed", {PERSISTENT, INT, "0"}},
     {"AutoCurveSpeedLowerLimit", {PERSISTENT, INT, "30"}},
@@ -191,7 +192,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoNaviCountDownMode", {PERSISTENT, INT, "2"}},
     {"TurnSpeedControlMode", {PERSISTENT, INT, "1"}},
 
-    {"CarrotSmartSpeedControl", {PERSISTENT, INT, "0"}},
     {"MapTurnSpeedFactor", {PERSISTENT, INT, "90"}},
     {"ModelTurnSpeedFactor", {PERSISTENT, INT, "0"}},
     {"StoppingAccel", {PERSISTENT, INT, "0"}},
@@ -208,6 +208,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CruiseButtonTest3", {PERSISTENT, INT, "1"}},
 
     {"CruiseSpeedUnit", {PERSISTENT, INT, "10"}},
+    {"CruiseButtonLongDelay", {PERSISTENT, INT, "40"} },
     {"CruiseSpeedUnitBasic", {PERSISTENT, INT, "1"}},
     {"CruiseSpeed1", {PERSISTENT, INT, "30"}},
     {"CruiseSpeed2", {PERSISTENT, INT, "50"}},
@@ -266,6 +267,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"DynamicTFollow", {PERSISTENT, INT, "0"}},
     {"DynamicTFollowLC", {PERSISTENT, INT, "100"}},
+    {"TFollowDecelBoost", {PERSISTENT, INT, "10"}},
     {"EnableSpeedTF", {PERSISTENT, INT, "0"}},
     {"AChangeCostStarting", {PERSISTENT, INT, "10"}},
     {"TrafficStopDistanceAdjust", {PERSISTENT, INT, "400"}},
@@ -278,6 +280,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LaneChangeNeedTorque", {PERSISTENT, INT, "0"}},
     {"LaneChangeDelay", {PERSISTENT, INT, "0"}},
     {"LaneChangeBsd", {PERSISTENT, INT, "0"}},
+    {"LaneLineCheck", {PERSISTENT, INT, "0"}},
     {"MaxAngleFrames", {PERSISTENT, INT, "89"}},
 
     {"SoftHoldMode", {PERSISTENT, INT, "0"}},
@@ -290,6 +293,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"LatMpcInputOffset", {PERSISTENT, INT, "4"}},
 
     {"PathOffset", {PERSISTENT, INT, "0"}},
+    {"CameraYawTrimDeg", {PERSISTENT, INT, "0"}},
 
     {"LateralTorqueCustom", {PERSISTENT, INT, "0"}},
     {"LateralTorqueAccelFactor", {PERSISTENT, INT, "2500"}},
@@ -315,9 +319,6 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"CarrotException", {CLEAR_ON_MANAGER_START, STRING}},
 
-    {"CarrotSpeed", {PERSISTENT, INT} },
-    {"CarrotSpeedViz", {PERSISTENT, JSON} },
-    {"CarrotSpeedTable", {PERSISTENT, BYTES} },
     {"CarName", {PERSISTENT, STRING}},
     {"EVTable", {PERSISTENT, BOOL, "0"}},
     {"LongPitch", {PERSISTENT, BOOL, "0"}},
