@@ -109,7 +109,12 @@ class CarState(CarStateBase):
 
     self.params = CarControllerParams(CP)
 
-    self.main_enabled = True if Params().get_int("AutoEngage") == 2 else False
+    params = Params()
+    self.hyundai_camera_scc = params.get_int("HyundaiCameraSCC")
+    self.auto_cruise_control_enabled = params.get_int("AutoCruiseControl") > 0
+    self.stock_main_switch_mode = self.hyundai_camera_scc == 2 and not self.auto_cruise_control_enabled
+
+    self.main_enabled = False if self.stock_main_switch_mode else (True if params.get_int("AutoEngage") == 2 else False)
     self.gear_shifter = GearShifter.drive # Gear_init for Nexo ?? unknown 21.02.23.LSW
 
     self.totalDistance = 0.0
@@ -541,6 +546,8 @@ class CarState(CarStateBase):
       self.MainMode_ACC = cp_cam.vl["SCC_CONTROL"]["MainMode_ACC"] == 1
       self.ACCMode = cp_cam.vl["SCC_CONTROL"]["ACCMode"]
       self.LFA_ICON = cp_cam.vl["LFAHDA_CLUSTER"]["HDA_LFA_SymSta"]
+      if self.stock_main_switch_mode:
+        ret.cruiseState.available = self.main_enabled = self.MainMode_ACC
       
     if self.CP.openpilotLongitudinalControl:
       # These are not used for engage/disengage since openpilot keeps track of state using the buttons
@@ -661,7 +668,7 @@ class CarState(CarStateBase):
     prev_main_buttons = self.main_buttons[-1]
     #self.cruise_buttons.extend(cp.vl_all[self.cruise_btns_msg_canfd]["CRUISE_BUTTONS"])
     self.main_buttons.extend(cp.vl_all[self.cruise_btns_msg_canfd]["ADAPTIVE_CRUISE_MAIN_BTN"])
-    if self.main_buttons[-1] != prev_main_buttons and not self.main_buttons[-1]: # and self.CP.openpilotLongitudinalControl: #carrot
+    if not self.stock_main_switch_mode and self.main_buttons[-1] != prev_main_buttons and not self.main_buttons[-1]: # and self.CP.openpilotLongitudinalControl: #carrot
       self.main_enabled = not self.main_enabled
       print("main_enabled = {}".format(self.main_enabled))
     self.buttons_counter = cp.vl[self.cruise_btns_msg_canfd]["COUNTER"]
