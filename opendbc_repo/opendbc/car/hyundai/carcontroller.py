@@ -346,7 +346,11 @@ class CarController(CarControllerBase):
         self.hyundai_jerk.check_carrot_cruise(CC, CS, hud_control, stopping, accel, actuators.aTarget)
 
         if True: #not camera_scc:
-          can_sends.extend(hyundaicanfd.create_ccnc_messages(self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control, apply_angle, left_lane_warning, right_lane_warning, self.enable_corner_radar))
+          can_sends.extend(hyundaicanfd.create_ccnc_messages(
+            self.CP, self.packer, self.CAN, self.frame, CC, CS, hud_control,
+            apply_angle, left_lane_warning, right_lane_warning, self.enable_corner_radar,
+            allow_cruise_button_automation=self.auto_cruise_control_enabled
+          ))
           if hda2:
             can_sends.extend(hyundaicanfd.create_adrv_messages(self.CP, self.packer, self.CAN, self.frame))
           else:
