@@ -431,7 +431,7 @@ class CarController(CarControllerBase):
     can_sends = []
     if CS.out.brakePressed or CS.out.brakeHoldActive:
       return can_sends
-    stock_pause_button = self.camera_scc_params == 2 and CS.cruise_buttons[-1] == Buttons.CANCEL
+    stock_pause_button = self.camera_scc_params == 2 and any(button == Buttons.CANCEL for button in CS.cruise_buttons)
     if use_clu11:
       if CC.cruiseControl.cancel and not stock_pause_button:
         can_sends.append(hyundaican.create_clu11(self.packer, self.frame, CS.clu11, Buttons.CANCEL, self.CP))

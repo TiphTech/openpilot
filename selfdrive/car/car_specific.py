@@ -46,6 +46,7 @@ class CarSpecificEvents:
     self.do_shutdown = False
     self.params = Params()
     self.frame = 0
+    self.hyundai_camera_scc = 0
     self.mute_door = False
     self.mute_seatbelt = False
     self.vCruise_prev = 250
@@ -55,6 +56,7 @@ class CarSpecificEvents:
     if self.frame % 100 == 0:
       self.mute_seatbelt = self.params.get_bool("MuteSeatbelt")
       self.mute_door = self.params.get_bool("MuteDoor")
+      self.hyundai_camera_scc = self.params.get_int("HyundaiCameraSCC")
     
   def update(self, CS: car.CarState, CS_prev: car.CarState, CC: car.CarControl):
     self.frame += 1
@@ -156,10 +158,13 @@ class CarSpecificEvents:
       # On some newer model years, the CANCEL button acts as a pause/resume button based on the PCM state
       # To avoid re-engaging when openpilot cancels, check user engagement intention via buttons
       # Main button also can trigger an engagement on these cars
-      self.cruise_buttons.append(any(ev.type in HYUNDAI_ENABLE_BUTTONS for ev in CS.buttonEvents))
+      hyundai_enable_buttons = HYUNDAI_ENABLE_BUTTONS
+      if self.hyundai_camera_scc == 2:
+        hyundai_enable_buttons = (ButtonType.accelCruise, ButtonType.decelCruise, ButtonType.mainCruise)
+      self.cruise_buttons.append(any(ev.type in hyundai_enable_buttons for ev in CS.buttonEvents))
+      allow_enable = True if self.hyundai_camera_scc != 2 else any(self.cruise_buttons)
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
-                                         #pcm_enable=self.CP.pcmCruise, allow_enable=any(self.cruise_buttons), allow_button_cancel=False)
-                                         pcm_enable=self.CP.pcmCruise, allow_enable=True, allow_button_cancel=False)
+                                         pcm_enable=self.CP.pcmCruise, allow_enable=allow_enable, allow_button_cancel=False)
 
       # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
       if CS.vEgo < (self.CP.minSteerSpeed + 2.) and self.CP.minSteerSpeed > 10.:
