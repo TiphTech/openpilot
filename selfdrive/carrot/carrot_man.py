@@ -10,6 +10,11 @@ import time
 import numpy as np
 import zmq
 from datetime import datetime
+import traceback
+from typing import Any, Dict, List, Optional
+
+from aiohttp import web
+import asyncio
 
 from ftplib import FTP
 from cereal import log
@@ -18,7 +23,7 @@ import urllib.error
 import ssl
 
 import cereal.messaging as messaging
-from openpilot.common.realtime import Ratekeeper
+from openpilot.common.realtime import Ratekeeper, set_core_affinity
 from openpilot.common.params import Params
 from openpilot.common.filter_simple import MyMovingAverage
 from openpilot.system.hardware import PC, TICI
@@ -26,7 +31,6 @@ from openpilot.selfdrive.navd.helpers import Coordinate
 from opendbc.car.common.conversions import Conversions as CV
 
 from openpilot.selfdrive.carrot.carrot_serv import CarrotServ
-from openpilot.selfdrive.carrot.carrot_speed import CarrotSpeed
 
 from openpilot.common.gps import get_gps_location_service
 
@@ -233,6 +237,9 @@ class CarrotMan:
 
     self.active_carrot_last = False
 
+    self._rgdata_ts_lock = threading.Lock()
+    self._last_rgdata_timestamp_ms = 0
+
     self.is_metric = self.params.get_bool("IsMetric")
 
   def get_broadcast_address(self):
@@ -268,21 +275,7 @@ class CarrotMan:
     frame = 0
     self.save_toggle_values()
 
-    carrot_speed = CarrotSpeed(neighbor_ring=3)
-    self.params_memory.put_int_nonblocking("CarrotSpeed", 0)
-
     rk = Ratekeeper(20, print_delay_threshold=None)
-
-    carrotIndex_last = self.carrot_serv.carrotIndex
-    phone_gps_frame = self.carrot_serv.phone_gps_frame
-    carrot_speed_active_count = 0
-    self.v_cruise_last = 0
-    self.long_active = False
-    self.v_cruise_change = 0
-    self._last_vt = 0.0
-    self.gas_pressed_count = 0
-    self.brake_pressed_count = 0
-    self._last_viz_t = 0.0
 
     while self.is_running:
       try:
@@ -297,15 +290,6 @@ class CarrotMan:
         #print("coords=", coords)
         #print("curvatures=", curvatures)
         self.carrot_serv.update_navi(remote_ip, self.sm, self.pm, vturn_speed, coords, distances, route_speed, self.gps_location_service)
-
-        if phone_gps_frame != self.carrot_serv.phone_gps_frame:
-          phone_gps_frame = self.carrot_serv.phone_gps_frame
-          carrot_speed_active_count = 10
-        else:
-          carrot_speed_active_count -= 1
-
-        if carrot_speed_active_count > 0:
-          self.carrot_speed_serv(carrot_speed, frame)
 
         if frame % 20 == 0 or remote_addr is not None:
           try:
@@ -330,7 +314,7 @@ class CarrotMan:
             #  sock.sendto(dat, address)
 
             if remote_addr is None:
-              print(f"Broadcasting: {self.broadcast_ip}") #:{msg}")
+              #print(f"Broadcasting: {self.broadcast_ip}") #:{msg}")
               if not self.navd_active:
                 #print("clear path_points: navd_active: ", self.navd_active)
                 self.navi_points = []
@@ -350,85 +334,6 @@ class CarrotMan:
         traceback.print_exc()
         time.sleep(1)
 
-  def carrot_speed_serv(self, carrot_speed, frame):
-    v_ego = a_ego = 0.0
-    gas_pressed = False
-    if self.sm.alive['carState'] and self.sm.alive['carControl']:
-      CS = self.sm['carState']
-      CC = self.sm['carControl']
-      v_ego = CS.vEgo
-      a_ego = CS.aEgo
-      if CS.brakePressed:
-        self.brake_pressed_count = 200
-      gas_pressed = CS.gasPressed
-      v_ego_kph = v_ego * 3.6
-      if gas_pressed:
-        self.gas_pressed_count = 200
-        self.v_cruise_change = 0
-      elif self._last_vt == CS.vCruise:
-        self.v_cruise_last = CS.vCruise
-      elif self.long_active and CC.longActive: # and self.gas_pressed_count == 0:
-        if self.v_cruise_last < CS.vCruise:  # 속도가 증가하면
-          if v_ego_kph < CS.vCruise:
-            self.v_cruise_change = 100
-          else:
-            self.v_cruise_change = 0
-        elif self.v_cruise_last > CS.vCruise: # 속도가 감소하면
-          if v_ego_kph < CS.vCruise: # 주행속도가 느리면
-            self.v_cruise_change = -100 #100
-          else:                       # 주행속도가 빠르면
-            self.v_cruise_change = -100
-
-        if self.v_cruise_change != 0:
-          self.gas_pressed_count = 0
-      else:
-        self.v_cruise_change = 0
-      self.long_active = CC.longActive
-      self.v_cruise_last = CS.vCruise
-    else:
-      self.v_cruise_change = 0
-      return
-    
-    v_cruise_apply = max(min(CS.vCruise, v_ego_kph), 20)
-    vt_last = self.params_memory.get_int("CarrotSpeed")
-    if vt_last != 0:
-      self.v_cruise_change = 0
-    self.params_memory.put_int("CarrotSpeed", 0)
-
-    now = time.monotonic()
-    heading = self.carrot_serv.bearing #nPosAnglePhone
-    lat, lon = self.carrot_serv.vpPosPointLat, self.carrot_serv.vpPosPointLon #self.carrot_serv.estimate_position(self.carrot_serv.phone_latitude, self.carrot_serv.phone_longitude, heading, v_ego, now - self.carrot_serv.last_update_gps_time_phone)
-    #vt = carrot_speed.query_target_dist(lat, lon, heading, 0.0)
-    viz_json, vt = carrot_speed.export_cells_around_with_here(lat, lon, heading, ring=4, max_points=64, lateral_m = 6.0)
-    if self.v_cruise_change != 0:
-      carrot_speed.add_sample(lat, lon, heading, v_cruise_apply if self.v_cruise_change > 0 else (- v_cruise_apply))
-      if self.v_cruise_change > 0:
-        self.v_cruise_change -= 1
-      if self.v_cruise_change < 0:
-        self.v_cruise_change += 1
-    else:
-      if self.brake_pressed_count > 0:
-        pass
-      elif self.gas_pressed_count > 0:
-        vt = max(vt, v_cruise_apply)
-        carrot_speed.add_sample(lat, lon, heading, vt)
-      else:
-        self.params_memory.put_int_nonblocking("CarrotSpeed", int(vt))
-
-    self._last_vt = vt
-    if gas_pressed and a_ego < -0.5: #self._last_vt < 0.0:
-      carrot_speed.invalidate_last_hit(window_s=2.0, action="clear")
-    self.gas_pressed_count = max(0, self.gas_pressed_count - 1)
-    self.brake_pressed_count = max(0, self.brake_pressed_count - 1)
-
-    if now - self._last_viz_t > 0.5: # 2Hz
-        self._last_viz_t = now
-        # 메모리 Params에 쓰는 게 좋음 (디스크 말고)
-        self.params_memory.put_nonblocking("CarrotSpeedViz", viz_json)
-
-    carrot_speed.maybe_save()
-
-
   
   def carrot_navi_route(self):
 
@@ -436,7 +341,8 @@ class CarrotMan:
       if False and self.navd_active:  # mabox always active
         self.navd_active = False
         self.params.remove("NavDestination")
-    if not self.navi_points_active or not SHAPELY_AVAILABLE or (self.carrot_serv.active_carrot <= 1 and not self.navd_active):
+    is_onroad = self.params.get_bool("IsOnroad")
+    if not is_onroad or not self.navi_points_active or not SHAPELY_AVAILABLE or (self.carrot_serv.active_carrot <= 1 and not self.navd_active):
       #print(f"navi_points_active: {self.navi_points_active}, active_carrot: {self.carrot_serv.active_carrot}")
       if self.navi_points_active:
         print("navi_points_active: ", self.navi_points_active, "active_carrot: ", self.carrot_serv.active_carrot, "navd_active: ", self.navd_active)
@@ -627,7 +533,7 @@ class CarrotMan:
                 #  print(f"carrot_man_thread: send error...: {e}")
 
               except TimeoutError:
-                print("Waiting for data (timeout)...")
+                #print("Waiting for data (timeout)...")
                 self.remote_addr = None
                 time.sleep(1)
 
@@ -646,7 +552,6 @@ class CarrotMan:
         self.remote_addr = None
         print(f"Network error, retrying...: {e}")
         time.sleep(2)
-
 
   def parse_kisa_data(self, data: bytes):
     result = {}
@@ -702,7 +607,7 @@ class CarrotMan:
                   print(data)
 
               except TimeoutError:
-                print("Waiting for data (timeout)...")
+                #print("Waiting for data (timeout)...")
                 #self.remote_addr = None
                 time.sleep(1)
 
@@ -843,10 +748,11 @@ class CarrotMan:
           if isOnroadCount > 500 and not is_tmux_sent and networkConnected:
             self.send_tmux("Ekdrmsvkdlffjt7710", "onroad", send_settings = True)
             is_tmux_sent = True
-          if self.params.get_bool("CarrotException") and networkConnected:
-            self.params.put_bool("CarrotException", False)
+          carrot_exception = self.params.get("CarrotException")
+          if carrot_exception in ["exception", "log", "tmux_send"] and networkConnected:
+            self.params.put_bool("CarrotException", "")
             self.make_tmux_data()
-            self.send_tmux("Ekdrmsvkdlffjt7710", "exception")
+            self.send_tmux("Ekdrmsvkdlffjt7710", carrot_exception)
         elif 'echo_cmd' in json_obj:
           try:
             result = subprocess.run(json_obj['echo_cmd'], shell=True, capture_output=True, text=False)
@@ -1029,17 +935,262 @@ class CarrotMan:
     turnSpeed = min(turnSpeed, 250)
     return turnSpeed * curv_direction
 
+  def carrot_navi_thread(self):
+    self.carrot_navi_tcp_server(7712)
+
+  def handle_route(self, arr: list):
+    if not arr:
+      print("Received route: 0")
+      # navd route가 비어오면 비활성 처리
+      self.navi_points = []
+      self.navi_points_start_index = 0
+      self.navi_points_active = False
+      self.navd_active = False
+      return
+
+    # valid만 필터 (필요 없으면 제거)
+    valid_pts = [p for p in arr if isinstance(p, dict) and p.get("valid", True)]
+    if not valid_pts:
+      print("Received route: 0 valid")
+      self.navi_points = []
+      self.navi_points_start_index = 0
+      self.navi_points_active = False
+      self.navd_active = False
+      return
+
+    # x=lon, y=lat
+    coords = []
+    navi_points = []
+
+    for p in valid_pts:
+      try:
+        lon = float(p.get("x"))
+        lat = float(p.get("y"))
+      except Exception:
+        continue
+
+      navi_points.append((lon, lat))
+      coords.append({"latitude": lat, "longitude": lon})
+
+    self.navi_points = navi_points
+    self.navi_points_start_index = 0
+    self.navi_points_active = True
+    self.navd_active = True
+
+    print("Received points:", len(self.navi_points))
+
+    self.send_routes(coords)
+
+    if coords:
+      dest = dict(coords[-1])
+      dest["place_name"] = "External Navi"
+      try:
+        self.params.put("NavDestination", json.dumps(dest))
+      except Exception as e:
+        print("NavDestination put error:", e)
+
+  def handle_traffic_light(self, d: dict):
+    print(f"[Traffic] {d}")
+
+    # {'distance': 120, 'greenLightRemainTime': 0, 'leftLightRemainTime': 0, 'location': {'coordString': 'x:127.045286, y:37.477032', 'latitude': 37.47703188722564, 'longitude': 127.04528634430659},
+    #       'redLightRemainTime': 15, 'rightLightRemainTime': 0, 'uturnLightRemainTime': 0, 'greenLightOn': False, 'leftLightOn': False, 'redLightOn': True, 'rightLightOn': False, 'uturnLightOn': False}
 
 
-import traceback
+
+  def handle_carrot_state(self, d: dict):
+    try:
+      self.carrot_serv.update(d)
+    except Exception as e:
+      print("carrot_state update error:", e)
+
+  def handle_unknown(self, obj: Any):
+    print("[UNKNOWN]", str(obj)[:200])
+
+  def _get_timestamp_ms(self, obj: Any) -> int:
+    if not isinstance(obj, dict):
+      return 0
+    try:
+      return int(obj.get("timestamp_ms", 0))
+    except Exception:
+      return 0
+
+
+  def _is_stale_rgdata(self, timestamp_ms: int):
+    if timestamp_ms <= 0:
+      return False, 0
+
+    with self._rgdata_ts_lock:
+      last_ts = self._last_rgdata_timestamp_ms
+      if timestamp_ms <= last_ts:
+        return True, last_ts
+
+      self._last_rgdata_timestamp_ms = timestamp_ms
+      return False, last_ts
+  
+  def _dispatch_obj(self, obj: Any):
+    if obj is None:
+      return
+
+    # obj가 str이면 여기서 JSON 파싱
+    if isinstance(obj, str):
+      s = obj.strip()
+      if not s:
+        return
+      try:
+        obj = json.loads(s)
+      except Exception:
+        # JSON 아니면 unknown 처리
+        return self.handle_unknown(s[:200])
+
+    if not isinstance(obj, dict):
+      return self.handle_unknown(obj)
+
+    if "vrtx" in obj:
+      self.handle_route(obj["vrtx"])
+
+    if "rgdata" in obj:
+      timestamp_ms = self._get_timestamp_ms(obj)
+      stale, last_ts = self._is_stale_rgdata(timestamp_ms)
+      if stale:
+        print(f"[STALE DROP] rgdata ts={timestamp_ms} <= last={last_ts}")
+      else:
+        self.handle_carrot_state(obj["rgdata"])
+      
+    if "sinf" in obj:
+      self.handle_traffic_light(obj["sinf"])
+
+  def carrot_navi_http_thread(self):
+    asyncio.run(self.carrot_navi_http_server(7713))
+
+  def carrot_navi_tcp_server(self, port: int = 7712):
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server.bind(("0.0.0.0", port))
+    server.listen(5)
+    print("TCP server listening", port)
+
+    while True:
+      conn, addr = server.accept()
+      self.remote_addr = addr
+      print("Connected:", addr)
+      conn.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+      try:
+        f = conn.makefile("r", encoding="utf-8", errors="ignore")
+        while True:
+          try:
+            line = f.readline()
+          except socket.timeout:
+            print("TCP timeout: closing connection", addr)
+            break
+
+          if not line:
+            break
+
+          s = line.strip()
+          if not s:
+            continue
+
+          try:
+            obj = json.loads(s)
+          except Exception:
+            obj = s
+
+          try:
+            self._dispatch_obj(obj)
+          except Exception as e:
+            print("dispatch error:", e, "raw:", repr(s[:200]))
+
+      except Exception as e:
+        print("TCP error:", e)
+
+      finally:
+        try:
+          conn.close()
+        except Exception:
+          pass
+        self.remote_addr = None
+
+  async def carrot_http_post(self, request: web.Request):
+    tmap_version = request.match_info.get("tmap_version", "")
+
+    try:
+      peer = request.transport.get_extra_info("peername")
+    except Exception:
+      peer = None
+
+    #print(f"[HTTP] request from={peer} version={tmap_version}")
+
+    try:
+      obj = await request.json()
+      #if isinstance(obj, dict):
+      #  print(f"[HTTP] json keys={list(obj.keys())[:10]}")
+      #else:
+      #  print(f"[HTTP] json type={type(obj).__name__}")
+    except Exception as e:
+      print(f"[HTTP] json parse error: {e}")
+      return web.json_response({
+        "ok": False,
+        "error": f"invalid json: {e}"
+      }, status=400)
+
+    if isinstance(obj, dict):
+      obj["_tmap_version"] = tmap_version
+
+    try:
+      self._dispatch_obj(obj)
+      #print(f"[HTTP] dispatch ok version={tmap_version}")
+      #print(obj)
+      return web.json_response({
+        "ok": True,
+        "tmap_version": tmap_version
+      })
+    except Exception as e:
+      print(f"[HTTP] dispatch error: {e}")
+      traceback.print_exc()
+      return web.json_response({
+        "ok": False,
+        "error": str(e),
+        "tmap_version": tmap_version
+      }, status=500)
+  
+  async def carrot_http_health(self, request: web.Request):
+    return web.json_response({
+      "ok": True,
+      "service": "carrot_navi_http"
+    })
+
+  async def carrot_navi_http_server(self, port: int = 7713):
+    app = web.Application(client_max_size=1024 * 1024)
+
+    app.router.add_post("/api/navi/{tmap_version}", self.carrot_http_post)
+    app.router.add_get("/health", self.carrot_http_health)
+
+    runner = web.AppRunner(app, access_log=None)
+    await runner.setup()
+
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+
+    print("HTTP server listening", port)
+
+    while True:
+      await asyncio.sleep(3600)
 
 def main():
+  try:
+    set_core_affinity([0, 1, 2, 3])
+  except Exception:
+    print("[carrot_man] failed to set core affinity")
+
   print("CarrotManager Started")
   #print("Carrot GitBranch = {}, {}".format(Params().get("GitBranch"), Params().get("GitCommitDate")))
   carrot_man = CarrotMan()
 
   print(f"CarrotMan {carrot_man}")
   threading.Thread(target=carrot_man.kisa_app_thread).start()
+  threading.Thread(target=carrot_man.carrot_navi_thread).start()
+  threading.Thread(target=carrot_man.carrot_navi_http_thread).start()
+  
   while True:
     try:
       carrot_man.carrot_man_thread()
