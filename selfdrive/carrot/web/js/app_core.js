@@ -23,7 +23,7 @@ disableViewportZoomGestures();
 
 let SETTINGS = null;
 let CURRENT_GROUP = null;
-let LANG = "ko"; // "ko" | "en" | "zh"
+let LANG = "en"; // forced: "en"
 const LANG_STORAGE_KEY = "carrot_web_lang";
 const LANG_EMOJI = {
   ko: "🇰🇷",
@@ -481,18 +481,9 @@ function normalizeLangCode(raw) {
 
 function detectDefaultLang() {
   try {
-    const stored = normalizeLangCode(localStorage.getItem(LANG_STORAGE_KEY));
-    if (stored) return stored;
+    localStorage.setItem(LANG_STORAGE_KEY, "en");
   } catch {}
-
-  const browserLangs = Array.isArray(navigator.languages) && navigator.languages.length
-    ? navigator.languages
-    : [navigator.language, navigator.userLanguage];
-  for (const candidate of browserLangs) {
-    const normalized = normalizeLangCode(candidate);
-    if (normalized) return normalized;
-  }
-  return "ko";
+  return "en";
 }
 
 LANG = detectDefaultLang();
@@ -1000,9 +991,7 @@ function showCarScreen(which, pushHistory = false) {
 }
 
 function toggleLang() {
-  if (LANG === "ko") LANG = "en";
-  else if (LANG === "en") LANG = "zh";
-  else LANG = "ko";
+  LANG = "en";
   try {
     localStorage.setItem(LANG_STORAGE_KEY, LANG);
   } catch {}
@@ -1533,7 +1522,7 @@ function escapeHtml(s) {
 function formatItemText(p, keyKo, keyEn, fallback = "") {
   if (LANG === "zh") return (p["c" + keyEn.slice(1)] || p[keyEn] || p[keyKo] || fallback);
   if (LANG === "ko") return (p[keyKo] ?? fallback);
-  return (p[keyEn] ?? p[keyKo] ?? fallback);
+  return (p[keyEn] ?? fallback);
 }
 
 function clamp(v, mn, mx) {
