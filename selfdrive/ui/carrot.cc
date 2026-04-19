@@ -2889,6 +2889,7 @@ protected:
     float   a_ego_filtered = 0.0;
     float steering_angle_pos = 0.0;
     int     brake_bar_hold_frames = 0;
+    int     brake_bar_on_frames = 0;
     void draw_blinker_lane(NVGcontext* vg, int x, int y, int w, int h, bool active) {
         ui_fill_rect(vg, {x, y, w, h}, COLOR_BLACK_ALPHA(230), 0);
         if (!active) return;
@@ -2941,9 +2942,16 @@ public:
         auto car_state = sm["carState"].getCarState();
 
         bool lat_active = sm.alive("carControl") && sm["carControl"].getCarControl().getLatActive();
-        bool brakes_active_raw = car_state.getBrakeLights() || car_state.getBrakePressed() || car_state.getAEgo() <= -0.6f;
-        if (brakes_active_raw) {
-          brake_bar_hold_frames = UI_FREQ;
+        bool brake_lights_raw = car_state.getBrakeLights();
+        if (brake_lights_raw) {
+          brake_bar_on_frames = std::min(brake_bar_on_frames + 1, UI_FREQ);
+        } else {
+          brake_bar_on_frames = 0;
+        }
+
+        bool brakes_active_confirmed = brake_bar_on_frames >= 2;
+        if (brakes_active_confirmed) {
+          brake_bar_hold_frames = UI_FREQ + UI_FREQ / 2;
         } else if (brake_bar_hold_frames > 0) {
           brake_bar_hold_frames--;
         }
