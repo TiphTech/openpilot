@@ -153,6 +153,7 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   header_layout->addWidget(alert_notif, 0, Qt::AlignHCenter | Qt::AlignLeft);
 
   version = new ElidedLabel();
+  version->setVisible(false);
   header_layout->addWidget(version, 0, Qt::AlignHCenter | Qt::AlignRight);
 
   main_layout->addLayout(header_layout);
@@ -231,7 +232,7 @@ void OffroadHome::hideEvent(QHideEvent *event) {
 }
 
 void OffroadHome::refresh() {
-  version->setText(getBrand() + " " +  QString::fromStdString(params.get("UpdaterCurrentDescription")));
+  version->clear();
 
   bool updateAvailable = update_widget->refresh();
   int alerts = alerts_widget->refresh();
