@@ -585,6 +585,8 @@ private:
     bool    lead_status = false;
     float   radarDist = 0.0;
     float   visionDist = 0.0;
+    float   leadSpeed = 0.0;
+    bool    leadSpeedValid = false;
     int     xState = 0;
     int     trafficState = 0;
 
@@ -593,11 +595,6 @@ private:
     int    softHoldActive = 0;
     int    carrotCruise = 0;
     bool    longActive = false;
-
-    float   t_follow = 0.0;
-    float   tf_distance = 0.0;
-    QPointF tf_vertex_left;
-    QPointF tf_vertex_right;
 
     QPointF lead_two_left;
     QPointF lead_two_right;
@@ -634,6 +631,8 @@ protected:
 
         auto lead_one = sm["radarState"].getRadarState().getLeadOne();
         lead_status = lead_one.getStatus();
+        leadSpeedValid = lead_status;
+        leadSpeed = leadSpeedValid ? lead_one.getVLeadK() : 0.0;
         if (lead_status) {
             z = line.getZ()[get_path_length_idx(line, lead_one.getDRel())];
             max_distance = lead_one.getDRel();
@@ -700,14 +699,6 @@ protected:
         path_width = (int)path_fwidth;
 
 
-        t_follow = lp.getTFollow();
-        tf_distance = lp.getDesiredDistance(); // t_follow* v_ego + 6;
-        int tf_idx = get_path_length_idx(line, tf_distance);
-        float tf_y = line.getY()[tf_idx];
-        float tf_z = line.getZ()[tf_idx];
-        _model->mapToScreen(tf_distance, tf_y - 1.0, tf_z + 1.22, &tf_vertex_left);
-        _model->mapToScreen(tf_distance, tf_y + 1.0, tf_z + 1.22, &tf_vertex_right);
-
         return true;
 	};
     bool isLeadSCC() {
@@ -764,34 +755,12 @@ public:
         else draw_dist = true;
 
         if (draw_dist) {
-            //float dist = (getRadarDist() > 0.0) ? getRadarDist() : getVisionDist();
-            //if (dist < 10.0) sprintf(str, "%.1f", dist);
-            //else sprintf(str, "%.0f", dist);
-            //ui_draw_text(s, x, disp_y, str, disp_size, COLOR_WHITE, BOLD);
-            int wStr = 0, w = 80;
-            float dist = radarDist * (s->scene.is_metric ? 1 : METER_TO_FOOT);
             NVGcolor text_color = (xState==0) ? COLOR_WHITE : (xState==1) ? COLOR_GREY : COLOR_GREEN;
-            if (dist > 0.0) {
-                sprintf(str, "%.1f", dist);
-                wStr = 32 * (strlen(str) + 0);
-                ui_fill_rect(s->vg, { (int)(x - w - wStr / 2), (int)(disp_y - 35), wStr, 42 }, isLeadSCC() ? COLOR_RED : COLOR_ORANGE, 15);
-                ui_draw_text(s, x - w, disp_y, str, 40, text_color, BOLD);
+            if (leadSpeedValid) {
+                float lead_speed_disp = leadSpeed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
+                sprintf(str, "%.0f %s", lead_speed_disp, s->scene.is_metric ? "km/h" : "mph");
+                ui_draw_text(s, x, disp_y + 58, str, 52, text_color, BOLD);
             }
-            dist = visionDist * (s->scene.is_metric ? 1 : METER_TO_FOOT);
-            if (dist > 0.0) {
-                sprintf(str, "%.1f", dist);
-                wStr = 32 * (strlen(str) + 0);
-                ui_fill_rect(s->vg, { (int)(x + w - wStr / 2), (int)(disp_y - 35), wStr, 42 }, COLOR_BLUE, 15);
-                ui_draw_text(s, x + w, disp_y, str, 40, text_color, BOLD);
-            }
-        }
-        QPolygonF tf_vertext;
-        if (tf_distance > 0) {
-          tf_vertext.push_back(tf_vertex_left);
-          tf_vertext.push_back(tf_vertex_right);
-          ui_draw_line(s, tf_vertext, nullptr, nullptr, 3.0, COLOR_WHITE);
-          sprintf(str, "%.1f(%.2f)", tf_distance, t_follow);
-          ui_draw_text(s, tf_vertex_right.x(), tf_vertex_right.y(), str, 25, COLOR_WHITE, BOLD);
         }
 
 
@@ -1973,6 +1942,7 @@ public:
     int     nRoadLimitSpeed = 30;
     int     nGoPosDist = 0;
     int     xSpdLimit = 0;
+    int     xSpdDist = 0;
     int     xSignType = -1;
     QPointF nav_path_vertex[150];
     QPointF nav_path_vertex_xy[150];
@@ -2015,6 +1985,7 @@ public:
             szPosRoadName = QString::fromStdString(carrot_man.getSzPosRoadName());
             nRoadLimitSpeed = carrot_man.getNRoadLimitSpeed();
             xSpdLimit = carrot_man.getXSpdLimit();
+            xSpdDist = carrot_man.getXSpdDist();
             xSignType = carrot_man.getXSpdType();
             nGoPosDist = carrot_man.getNGoPosDist();
             QString atcType = QString::fromStdString(carrot_man.getAtcType());
@@ -2065,6 +2036,9 @@ public:
           szPosRoadName = "";
           nRoadLimitSpeed = 30;
           nGoPosDist = 0;
+          xSpdLimit = 0;
+          xSpdDist = 0;
+          xSignType = 0;
 		    }
 
         xState = lp.getXState();
@@ -2478,26 +2452,41 @@ public:
         xSignType = 1;
 #endif
 
-        //if (active_carrot >= 2 || nGoPosDist > 0) {
         if (true) {
-            dx = bx + 75;
-            dy = by + 175;
             int disp_speed = 0;
-            NVGcolor limit_color = COLOR_GREEN_ALPHA(210);
-            if (xSpdLimit > 0 && xSignType != 22) {
-                disp_speed = (int)(xSpdLimit * ((s->scene.is_metric)?1:KM_TO_MILE) + 0.5);
-                limit_color = (blink_timer <= 8) ? COLOR_RED_ALPHA(210) : COLOR_YELLOW_ALPHA(210);
-                ui_draw_text(s, dx, dy-45, "CAM", 30, COLOR_WHITE, BOLD);
-            }
-            else {
+            bool camera_limit = xSpdLimit > 0 && xSignType != 22;
+            bool speed_camera_ahead = xSpdLimit > 0 && xSignType != 22 && (xSpdDist > 0 || xSignType == 4 || xSignType == 100 || xSignType == 101);
+            if (camera_limit) {
+                disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
+            } else {
                 disp_speed = nRoadLimitSpeed;
-		            disp_speed = (int)(disp_speed * ((s->scene.is_metric)?1.0:KM_TO_MILE) + 0.5);
-                limit_color = (v_ego * 3.6 > disp_speed + 2) ? COLOR_RED_ALPHA(210) : COLOR_WHITE_ALPHA(210);
-                ui_draw_text(s, dx, dy - 45, "LIMIT", 30, COLOR_WHITE, BOLD);
+                disp_speed = (int)(disp_speed * ((s->scene.is_metric) ? 1.0 : KM_TO_MILE) + 0.5);
             }
 
-            ui_fill_rect(s->vg, { dx - 55, dy - 38, 110, 48 }, limit_color, 15, 2);
-            ui_draw_text(s, dx, dy, QString::number(disp_speed).toStdString().c_str(), 40, COLOR_WHITE, BOLD);
+            int sign_x = 145;
+            int sign_y = 145;
+            int outer_r = 76;
+            int inner_r = 59;
+            int sign_size = outer_r * 2;
+
+            nvgBeginPath(s->vg);
+            nvgCircle(s->vg, sign_x, sign_y, outer_r);
+            nvgFillColor(s->vg, COLOR_RED);
+            nvgFill(s->vg);
+
+            nvgBeginPath(s->vg);
+            nvgCircle(s->vg, sign_x, sign_y, inner_r);
+            nvgFillColor(s->vg, COLOR_WHITE);
+            nvgFill(s->vg);
+
+            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+            ui_draw_text(s, sign_x, sign_y - 6, QString::number(disp_speed).toStdString().c_str(), 56, COLOR_BLACK, BOLD, 0.0f, 0.0f);
+            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+            if (speed_camera_ahead) {
+              int cam_x = sign_x + outer_r + 16;
+              int cam_y = sign_y - outer_r;
+              ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
+            }
         }
 
         if (show_device_state) {
@@ -3052,6 +3041,7 @@ void ui_nvg_init(UIState *s) {
   {"ic_apm", "../assets/images/img_apm.png"},
   {"ic_apn", "../assets/images/img_apn.png"},
   {"ic_hda", "../assets/images/img_hda.png"},
+  {"ic_speedcam", "../assets/speedcam.png"},
   {"ic_navi_point", "../assets/images/navi_point.png"}
 
   };
