@@ -7,7 +7,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "selfdrive/ui/qt/offroad/experimental_mode.h"
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/qt/widgets/prime.h"
 #include "selfdrive/ui/qt/widgets/input.h"
@@ -520,10 +519,9 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   {
     QHBoxLayout *home_layout = new QHBoxLayout(home_widget);
     home_layout->setContentsMargins(0, 0, 0, 0);
-    home_layout->setSpacing(30);
+    home_layout->setSpacing(0);
 
-    // left: PrimeAdWidget
-    QStackedWidget *left_widget = new QStackedWidget(this);
+    QStackedWidget *prime_widget = new QStackedWidget(this);
     QVBoxLayout *left_prime_layout = new QVBoxLayout();
     left_prime_layout->setContentsMargins(0, 0, 0, 0);
     QWidget *prime_user = new PrimeUserWidget();
@@ -532,33 +530,15 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
     background-color: #333333;
     )");
     left_prime_layout->addWidget(prime_user);
-    left_prime_layout->addStretch();
-    left_widget->addWidget(new LayoutWidget(left_prime_layout));
-    left_widget->addWidget(new PrimeAdWidget);
-    left_widget->setStyleSheet("border-radius: 10px;");
+    prime_widget->addWidget(new LayoutWidget(left_prime_layout));
+    prime_widget->addWidget(new PrimeAdWidget);
+    prime_widget->setStyleSheet("border-radius: 10px;");
 
-    connect(uiState()->prime_state, &PrimeState::changed, [left_widget]() {
-      left_widget->setCurrentIndex(uiState()->prime_state->isSubscribed() ? 0 : 1);
+    connect(uiState()->prime_state, &PrimeState::changed, [prime_widget]() {
+      prime_widget->setCurrentIndex(uiState()->prime_state->isSubscribed() ? 0 : 1);
     });
 
-    home_layout->addWidget(left_widget, 1);
-
-    // right: ExperimentalModeButton, SetupWidget
-    QWidget* right_widget = new QWidget(this);
-    QVBoxLayout* right_column = new QVBoxLayout(right_widget);
-    right_column->setContentsMargins(0, 0, 0, 0);
-    right_widget->setFixedWidth(750);
-    right_column->setSpacing(30);
-
-    ExperimentalModeButton *experimental_mode = new ExperimentalModeButton(this);
-    QObject::connect(experimental_mode, &ExperimentalModeButton::openSettings, this, &OffroadHome::openSettings);
-    right_column->addWidget(experimental_mode, 1);
-
-    SetupWidget *setup_widget = new SetupWidget;
-    QObject::connect(setup_widget, &SetupWidget::openSettings, this, &OffroadHome::openSettings);
-    right_column->addWidget(setup_widget, 1);
-
-    home_layout->addWidget(right_widget, 1);
+    home_layout->addWidget(prime_widget, 1);
   }
   center_layout->addWidget(home_widget);
 
