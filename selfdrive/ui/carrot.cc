@@ -2455,7 +2455,7 @@ public:
         if (true) {
             int disp_speed = 0;
             bool camera_limit = xSpdLimit > 0 && xSignType != 22;
-            bool speed_camera_ahead = xSpdLimit > 0 && xSignType != 22 && (xSpdDist > 0 || xSignType == 4 || xSignType == 100 || xSignType == 101);
+            bool speed_camera_ahead = camera_limit;
             if (camera_limit) {
                 disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
