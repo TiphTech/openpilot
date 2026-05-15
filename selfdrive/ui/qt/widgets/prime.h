@@ -51,7 +51,12 @@ class PrimeAdWidget : public QFrame {
   Q_OBJECT
 public:
   explicit PrimeAdWidget(QWidget* parent = 0);
+
+private:
+  QLabel *countdownLabel;
+  QLabel *imageLabel;
 };
+
 
 
 // container widget
