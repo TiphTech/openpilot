@@ -154,7 +154,7 @@ def create_steering_messages_camera_scc(frame, packer, CP, CAN, CC, lat_active, 
         values["NEW_SIGNAL_1"] = 10
       ret.append(packer.make_can_msg("LFA", CAN.ECAN, values, rx_counter = rx_counter))
 
-  elif CS.lfa is not None:
+  else:
     values = {}
     values["LKA_MODE"] = 2
     values["LKA_ICON"] = 2 if lat_active else 1
@@ -598,10 +598,10 @@ def _get_desire_and_lane_changing(md):
     desire = md.meta.desire.raw
     ds = md.meta.desireState
     if len(ds) > 4:
-      if ds[1] > 0.9: lane_changing = 1
-      if ds[2] > 0.9: lane_changing = 2
-      if ds[3] > 0.9: lane_changing = 3
-      if ds[4] > 0.9: lane_changing = 4
+      if ds[1] > 0.8: lane_changing = 1
+      if ds[2] > 0.8: lane_changing = 2
+      if ds[3] > 0.8: lane_changing = 3
+      if ds[4] > 0.8: lane_changing = 4
   return desire, lane_changing
 
 def _apply_lane_desire(values, desire):
@@ -750,14 +750,14 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
         values["DISTANCE_CAR"] = 3 if hdp_active else 2 if cruise_enabled else 1 if main_enabled else 0
         values["DISTANCE_SPACING"] = 5 if hdp_active else 1 if cruise_enabled else 0
 
-        values["TARGET"] = 1 if hud_control.leadVisible and cruise_enabled else 0
+        values["TARGET"] = 1 if main_enabled else 0
         values["TARGET_DISTANCE"] = int(hud_control.leadDistance)
 
         values["BACKGROUND"] = 6 if CS.paddle_button_prev > 0 else 1 if cruise_enabled else 3 if lat_active else 7
         values["CENTERLINE"] = 1 if HDA_CntrlModSta > 0 else 0
         values["CAR_CIRCLE"] = 2 if hdp_active else 1 if cruise_enabled else 0
 
-        values["NAV_ICON"] = 2 if nav_active and cruise_enabled else 1 if main_enabled and nav_active else 0
+        values["NAV_ICON"] = 2 if nav_active else 0
         values["HDA_ICON"] = 5 if hdp_active else 2 if cruise_enabled else 1 if main_enabled else 0
         values["LFA_ICON"] = 5 if hdp_active else 2 if lat_active else 1 if lat_enabled else 0
         values["LKA_ICON"] = 4 if lat_active else 3 if lat_enabled else 0
@@ -812,8 +812,8 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
         values["LCA_LEFT_ARROW"] = 2 if CS.out.leftBlinker else 0
         values["LCA_RIGHT_ARROW"] = 2 if CS.out.rightBlinker else 0
 
-        values["LCA_LEFT_ICON"] = (1 if CS.out.leftBlindspot else 2) if lat_active else 0
-        values["LCA_RIGHT_ICON"] = (1 if CS.out.rightBlindspot else 2) if lat_active else 0
+        values["LCA_LEFT_ICON"] = 1 if CS.out.leftBlindspot else 2
+        values["LCA_RIGHT_ICON"] = 1 if CS.out.rightBlindspot else 2
 
         values["LANE_LEFT"] = 1 if desire in (1, 3) else 0
         values["LANE_RIGHT"] = 1 if desire in (2, 4) else 0
