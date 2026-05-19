@@ -144,7 +144,17 @@ class LatControlTorque(LatControl):
     if self.frame % 10 == 0:
       lateralTorqueCustom = self.params.get_int("LateralTorqueCustom")
       if lateralTorqueCustom > 0:
-        self.torque_params.latAccelFactor = self.params.get_float("LateralTorqueAccelFactor")*0.001
+        base_factor = self.params.get_float("LateralTorqueAccelFactor")
+        if self.params.get_bool("TorqueAccelFactorVariable"):
+          v_kph = CS.vEgo * 3.6
+          scale = base_factor / 3500.0
+          dynamic_factor = np.interp(
+            v_kph,
+            [50.0, 80.0, 110.0, 130.0],
+            [1500.0 * scale, 2000.0 * scale, base_factor, 5000.0 * scale],
+          )
+          base_factor = float(np.clip(dynamic_factor, 1000.0, 6000.0))
+        self.torque_params.latAccelFactor = base_factor*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001
         lateralTorqueKp = self.params.get_float("LateralTorqueKpV")*0.01
         lateralTorqueKi = self.params.get_float("LateralTorqueKiV")*0.01

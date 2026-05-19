@@ -67,6 +67,22 @@
     },
     {
       "group": "조향튜닝",
+      "name": "TorqueAccelFactorVariable",
+      "title": "_TorqueAccelFactorVariable(0)",
+      "descr": "속도에 따라 TorqueAccelFactor 값을 가변 적용",
+      "egroup": "LAT",
+      "etitle": "_TorqueAccelFactorVariable(0)",
+      "edescr": "Variable TorqueAccelFactor by speed. Uses LateralTorqueAccelFactor as the 110 km/h reference value.",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "unit": 1,
+      "cgroup": "转向",
+      "ctitle": "可变转向力矩加速系数(0)",
+      "cdescr": "根据车速改变 TorqueAccelFactor，以 110 km/h 的 LateralTorqueAccelFactor 为基准。"
+    },
+    {
+      "group": "조향튜닝",
       "name": "LateralTorqueFriction",
       "title": "_LateralTorqueFriction*0.001(100)",
       "descr": "높을수록 미세조향이 많아짐 \n\n 0~50 권장",
