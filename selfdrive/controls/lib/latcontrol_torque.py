@@ -13,7 +13,7 @@ from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.selfdrive.controls.lib.latcontrol import LatControl
 from openpilot.common.pid import PIDController
 
-from openpilot.common.params import Params
+from openpilot.common.params import Params, UnknownKeyName
 
 # At higher speeds (25+mph) we can assume:
 # Lateral acceleration achieved by a specific car correlates to
@@ -145,7 +145,12 @@ class LatControlTorque(LatControl):
       lateralTorqueCustom = self.params.get_int("LateralTorqueCustom")
       if lateralTorqueCustom > 0:
         base_factor = self.params.get_float("LateralTorqueAccelFactor")
-        if self.params.get_bool("TorqueAccelFactorVariable"):
+        try:
+          torque_accel_factor_variable = self.params.get_bool("TorqueAccelFactorVariable")
+        except UnknownKeyName:
+          torque_accel_factor_variable = False
+
+        if torque_accel_factor_variable:
           v_kph = CS.vEgo * 3.6
           scale = base_factor / 3500.0
           dynamic_factor = np.interp(
