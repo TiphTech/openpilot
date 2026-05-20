@@ -473,7 +473,7 @@ AutoTunerHistoryPanel::AutoTunerHistoryPanel(QWidget* parent) : QFrame(parent) {
   title->setStyleSheet("font-size: 60px; font-weight: bold; margin-bottom: 20px; color: white;");
   main_layout->addWidget(title);
 
-  QPushButton *btn_clear = new QPushButton(tr("전체 이력 삭제 (Clear All)"));
+  QPushButton *btn_clear = new QPushButton(tr("Clear All History"));
   btn_clear->setStyleSheet("background-color: #bb3333; font-size: 45px; padding: 30px; border-radius: 10px; margin-bottom: 30px; color: white; font-weight: bold;");
   connect(btn_clear, &QPushButton::clicked, this, &AutoTunerHistoryPanel::clearAll);
   main_layout->addWidget(btn_clear);
@@ -508,7 +508,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
 
   QString raw = QString::fromStdString(Params().get("CarrotLearningHistory"));
   if (raw.isEmpty()) {
-    QLabel *empty = new QLabel(tr("이력이 없습니다. (No tuning history available)"));
+    QLabel *empty = new QLabel(tr("No tuning history available."));
     empty->setStyleSheet("font-size: 45px; color: #888888;");
     list_layout->addWidget(empty);
     list_layout->addStretch();
@@ -526,7 +526,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
     row->setStyleSheet("background-color: #333333; border-radius: 15px; padding: 20px;");
     QHBoxLayout *row_layout = new QHBoxLayout(row);
 
-    QString text = QString("<span style='font-size: 35px; color: #aaaaaa;'>[%1 적용됨]</span><br>").arg(time_str);
+    QString text = QString("<span style='font-size: 35px; color: #aaaaaa;'>[%1 applied]</span><br>").arg(time_str);
     for (const QString& group : changes.keys()) {
       QJsonObject g_items = changes[group].toObject();
       QString short_group;
@@ -534,7 +534,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
       if (is_en && group.contains("(")) {
         short_group = group.split("(").last().replace(")", "");
       } else {
-        short_group = group.split(" ").first(); // e.g. "가속"
+        short_group = group.split(" ").first();
       }
       for (const QString& key : g_items.keys()) {
         QJsonObject info = g_items[key].toObject();
@@ -553,7 +553,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
 
     bool is_latest = (i == 0);
     
-    QPushButton *btn_restore = new QPushButton(tr("복구"));
+    QPushButton *btn_restore = new QPushButton(tr("Restore"));
     if (is_latest) {
       btn_restore->setStyleSheet("background-color: #178644; font-size: 40px; padding: 20px; border-radius: 10px; color: white;");
     } else {
@@ -564,7 +564,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
     connect(btn_restore, &QPushButton::clicked, [this, id]() { restoreItem(id); });
     row_layout->addWidget(btn_restore);
 
-    QPushButton *btn_del = new QPushButton(tr("삭제"));
+    QPushButton *btn_del = new QPushButton(tr("Delete"));
     if (is_latest) {
       btn_del->setStyleSheet("background-color: #555555; font-size: 40px; padding: 20px; border-radius: 10px; color: white;");
     } else {
@@ -581,7 +581,7 @@ void AutoTunerHistoryPanel::refreshHistory() {
 }
 
 void AutoTunerHistoryPanel::restoreItem(const QString& id) {
-  if (ConfirmationDialog::confirm(tr("이 시점의 튜닝을 취소하고 모든 값을 이전 상태로 되돌리시겠습니까?"), tr("복구"), this)) {
+  if (ConfirmationDialog::confirm(tr("Restore this tuning snapshot and revert all values to the previous state?"), tr("Restore"), this)) {
     QString raw = QString::fromStdString(Params().get("CarrotLearningHistory"));
     QJsonArray arr = QJsonDocument::fromJson(raw.toUtf8()).array();
     QJsonArray new_arr;
@@ -589,7 +589,7 @@ void AutoTunerHistoryPanel::restoreItem(const QString& id) {
     for (int i = 0; i < arr.size(); i++) {
       QJsonObject entry = arr[i].toObject();
       if (entry["id"].toString() == id) {
-        // 복구 로직: 이력에 저장된 'current' 값을 다시 Params에 기록
+        // Restore each saved "current" value from the selected history entry.
         QJsonObject changes = entry["changes"].toObject();
         for (const QString& group : changes.keys()) {
           QJsonObject g_items = changes[group].toObject();
@@ -609,12 +609,12 @@ void AutoTunerHistoryPanel::restoreItem(const QString& id) {
       Params().put("CarrotLearningHistory", QJsonDocument(new_arr).toJson(QJsonDocument::Compact).toStdString());
     }
     refreshHistory();
-    ConfirmationDialog::alert(tr("이전 값으로 복구가 완료되었습니다."), this);
+    ConfirmationDialog::alert(tr("Previous values restored."), this);
   }
 }
 
 void AutoTunerHistoryPanel::deleteItem(const QString& id) {
-  if (ConfirmationDialog::confirm(tr("정말 이 항목을 삭제하시겠습니까?"), tr("삭제"), this)) {
+  if (ConfirmationDialog::confirm(tr("Delete this history item?"), tr("Delete"), this)) {
     QString raw = QString::fromStdString(Params().get("CarrotLearningHistory"));
     QJsonArray arr = QJsonDocument::fromJson(raw.toUtf8()).array();
     QJsonArray new_arr;
@@ -633,7 +633,7 @@ void AutoTunerHistoryPanel::deleteItem(const QString& id) {
 }
 
 void AutoTunerHistoryPanel::clearAll() {
-  if (ConfirmationDialog::confirm(tr("모든 이력을 삭제하시겠습니까? (이전 파라미터 값으로 되돌아가지 않습니다)"), tr("전체 삭제"), this)) {
+  if (ConfirmationDialog::confirm(tr("Delete all tuning history? This will not restore previous parameter values."), tr("Clear All"), this)) {
     Params().remove("CarrotLearningHistory");
     refreshHistory();
   }
@@ -688,7 +688,7 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
     panels.append({tr("Firehose"), new FirehosePanel(this)});
   }
   panels.append({ tr("CarrotPilot"), new CarrotPanel(this) });
-  panels.append({ tr("튜닝 이력"), new AutoTunerHistoryPanel(this) });
+  panels.append({ tr("Tuning History"), new AutoTunerHistoryPanel(this) });
   panels.append({ tr("Developer"), new DeveloperPanel(this) });
 
   nav_btns = new QButtonGroup(this);

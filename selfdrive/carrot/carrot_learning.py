@@ -88,6 +88,12 @@ _AUTO_HUNTING_THRESHOLD = 0.8      # 자율 주행 중 가감속 변동(Hunting)
 # ── 공통 ─────────────────────────────────────────────────────────────
 _DT = 0.1  # update() 호출 주기 (초)
 
+_GROUP_ACCEL = "Acceleration"
+_GROUP_STEERING = "Steering"
+_GROUP_DRIVING = "Driving"
+_GROUP_DISTANCE = "Distance"
+_GROUP_DYNAMIC = "Dynamic"
+
 
 def _speed_band(v_ego_kph: float) -> int:
   """속도에 해당하는 가장 가까운 하위 구간 인덱스 반환"""
@@ -378,11 +384,11 @@ class CarrotLearner:
   def _calc_recommendations(self) -> dict:
     """Phase 1~4 추천값 계산. 추천 없으면 빈 dict 반환."""
     result = {
-      "가속 (Acceleration)": {},
-      "조향 (Steering)": {},
-      "주행 (Driving)": {},
-      "거리 (Following Distance)": {},
-      "동적제어 (Dynamic Control)": {},
+      _GROUP_ACCEL: {},
+      _GROUP_STEERING: {},
+      _GROUP_DRIVING: {},
+      _GROUP_DISTANCE: {},
+      _GROUP_DYNAMIC: {},
     }
 
     # ── Phase 1: CruiseMaxVals ──────────────────────────────────────
@@ -404,7 +410,7 @@ class CarrotLearner:
         continue
 
       if recommended_raw != current_raw:
-        result["가속 (Acceleration)"][key] = {
+        result[_GROUP_ACCEL][key] = {
           "current": current_raw,
           "recommended": recommended_raw,
           "band_kph": f"{_BP_KPH[i]}~{_BP_KPH[i+1] if i+1 < _NUM_BANDS else '∞'} km/h ({reason})",
@@ -420,7 +426,7 @@ class CarrotLearner:
         delta = int(avg_deg / _PATH_OFFSET_DEG_PER_UNIT)
         recommended = int(np.clip(current_offset + delta, -200, 200))
         if recommended != current_offset:
-          result["조향 (Steering)"]["PathOffset"] = {
+          result[_GROUP_STEERING]["PathOffset"] = {
             "current": current_offset,
             "recommended": recommended,
             "band_kph": "straight driving",
@@ -434,7 +440,7 @@ class CarrotLearner:
         current_delay = self._params.get_int("SteerActuatorDelay")
         recommended = min(300, current_delay + _DELAY_STEP_UNIT)
         if recommended != current_delay:
-          result["조향 (Steering)"]["SteerActuatorDelay"] = {
+          result[_GROUP_STEERING]["SteerActuatorDelay"] = {
             "current": current_delay,
             "recommended": recommended,
             "band_kph": "curve entry",
@@ -449,7 +455,7 @@ class CarrotLearner:
           current_sr_rate = 100  # 기본값 100%
         recommended_sr = min(150, current_sr_rate + _SR_RATE_STEP_UNIT)
         if recommended_sr != current_sr_rate:
-          result["조향 (Steering)"]["SteerRatioRate"] = {
+          result[_GROUP_STEERING]["SteerRatioRate"] = {
             "current": current_sr_rate,
             "recommended": recommended_sr,
             "band_kph": "curve entry (high override)",
@@ -507,7 +513,7 @@ class CarrotLearner:
       current_sf = self._params.get_int("TFollowSpeedFactor")
       recommended_sf = min(100, current_sf + _TFOLLOW_SPEED_FACTOR_STEP)
       if recommended_sf != current_sf:
-        result["거리 (Following Distance)"]["TFollowSpeedFactor"] = {
+        result[_GROUP_DISTANCE]["TFollowSpeedFactor"] = {
           "current": current_sf,
           "recommended": recommended_sf,
           "band_kph": "high-speed safety (>80km/h)",
@@ -515,7 +521,7 @@ class CarrotLearner:
         }
 
       if recommended_val != current_val:
-        result["거리 (Following Distance)"][key] = {
+        result[_GROUP_DISTANCE][key] = {
           "current": current_val,
           "recommended": recommended_val,
           "band_kph": f"highway ≥{_TFOLLOW_MIN_V_KPH:.0f}km/h ({name}, {reason})",
@@ -555,9 +561,9 @@ class CarrotLearner:
     # '제동 여유 확대' 방향이므로 동시 적용 시 복합 효과로 과보수화 위험.
     # → 가장 강한 시그널 1개만 이번 세션에 추천하고, 나머지는 '다음 세션' 권고.
     brake_candidates = [
-      ("JLeadFactor3",      "주행 (Driving)",         jlead_candidate),
-      ("DynamicTFollow",    "동적제어 (Dynamic Control)", dyn_candidate),
-      ("TFollowDecelBoost", "동적제어 (Dynamic Control)", boost_candidate),
+      ("JLeadFactor3",      _GROUP_DRIVING, jlead_candidate),
+      ("DynamicTFollow",    _GROUP_DYNAMIC, dyn_candidate),
+      ("TFollowDecelBoost", _GROUP_DYNAMIC, boost_candidate),
     ]
     active = [(name, group, c) for name, group, c in brake_candidates if c is not None]
 
@@ -573,7 +579,7 @@ class CarrotLearner:
       entry = {k: v for k, v in winner_c.items() if k != "_signal"}
       # 다음 세션에 재평가하도록 안내 메시지 추가
       deferred_names = [n for n, g, c in active_sorted[1:]]
-      entry["band_kph"] = entry["band_kph"] + f" ※다음세션권고:{','.join(deferred_names)}"
+      entry["band_kph"] = entry["band_kph"] + f" next session: {', '.join(deferred_names)}"
       result[winner_group][winner_name] = entry
 
     return {k: v for k, v in result.items() if v}

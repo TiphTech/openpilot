@@ -1508,8 +1508,8 @@
     {
       "group": "화면패스",
       "name": "CarrotLearningActive",
-      "title": "Auto-Tuner: 학습(0)",
-      "descr": "주행 중 운전자 개입(가속/제동) 데이터를 학습하여 파라미터 최적화를 추천합니다.\n 0: 끄기\n 1: 켜기",
+      "title": "Auto-Tuner: Learning",
+      "descr": "Learns from driver interventions (gas/brake) to recommend parameter adjustments.\n 0: Off\n 1: On",
       "egroup": "DISP",
       "etitle": "Auto-Tuner: Learning",
       "edescr": "Learns from driver interventions (gas/brake) to recommend parameter adjustments.\n 0: Off, 1: On",

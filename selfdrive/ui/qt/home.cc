@@ -57,7 +57,7 @@ public:
 
     main_layout->addWidget(scroll, 1);
 
-    QPushButton *btn_ok = new QPushButton(tr("확인"));
+    QPushButton *btn_ok = new QPushButton(tr("OK"));
     btn_ok->setFixedWidth(400);
     main_layout->addWidget(btn_ok, 0, Qt::AlignCenter);
 
@@ -167,16 +167,16 @@ public:
 
     QHBoxLayout *btn_layout = new QHBoxLayout();
     
-    QPushButton *btn_guide = new QPushButton(tr("사용 안내 (Guide)"));
+    QPushButton *btn_guide = new QPushButton(tr("Guide"));
     btn_guide->setStyleSheet("background-color: #3b5998;");
     
-    QPushButton *btn_later = new QPushButton(tr("나중에 (Later)"));
+    QPushButton *btn_later = new QPushButton(tr("Later"));
     btn_later->setStyleSheet("background-color: #555555;");
     
-    QPushButton *btn_clear = new QPushButton(tr("학습 초기화 (Clear)"));
+    QPushButton *btn_clear = new QPushButton(tr("Clear Learning"));
     btn_clear->setStyleSheet("background-color: #8a1d1d;");
     
-    QPushButton *btn_apply = new QPushButton(tr("선택 적용 (Apply Selected)"));
+    QPushButton *btn_apply = new QPushButton(tr("Apply Selected"));
     btn_apply->setStyleSheet("background-color: #178644;");
 
     btn_layout->addWidget(btn_guide);
@@ -272,7 +272,7 @@ public:
     connect(btn_later, &QPushButton::clicked, this, &QDialog::reject);
     
     connect(btn_clear, &QPushButton::clicked, [=]() {
-      if (ConfirmationDialog::confirm(tr("적용하지 않고 현재까지의 모든 학습 데이터를 삭제하시겠습니까?"), tr("초기화"), this)) {
+      if (ConfirmationDialog::confirm(tr("Clear all learning data collected so far without applying it?"), tr("Clear"), this)) {
         Params().putBool("CarrotLearningClear", true);
         this->reject();
       }
