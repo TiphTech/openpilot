@@ -72,8 +72,8 @@ def and_(*fns):
 def enable_dm(started, params, CP: car.CarParams) -> bool:
   return (started or params.get_bool("IsDriverViewEnabled")) and params.get_int("DisableDM") == 0
 
-def enable_connect(started, params, CP: car.CarParams) -> bool:
-  return params.get_int("EnableConnect") > 0
+#def enable_connect(started, params, CP: car.CarParams) -> bool:
+#  return params.get_int("EnableConnect") > 0
 
 def enable_xiaoge_data(started, params, CP: car.CarParams) -> bool:
   return params.get_bool("ShareData")
@@ -130,7 +130,7 @@ procs = [
   PythonProcess("hardwared", "system.hardware.hardwared", always_run),
   PythonProcess("tombstoned", "system.tombstoned", always_run, enabled=not PC),
   PythonProcess("updated", "system.updated.updated", enable_updated, enabled=not PC),
-  PythonProcess("uploader", "system.loggerd.uploader", enable_connect),
+  #PythonProcess("uploader", "system.loggerd.uploader", enable_connect),
   PythonProcess("statsd", "system.statsd", always_run),
 
   # debug procs
@@ -139,8 +139,6 @@ procs = [
   PythonProcess("webjoystick", "tools.bodyteleop.web", notcar),
   PythonProcess("joystick", "tools.joystick.joystick_control", and_(joystick, iscar)),
 
-  #PythonProcess("fleet_manager", "selfdrive.frogpilot.fleetmanager.fleet_manager", check_fleet, enabled=not PC),
-  PythonProcess("fleet_manager", "selfdrive.frogpilot.fleetmanager.fleet_manager", check_fleet),
   PythonProcess("carrot_man", "selfdrive.carrot.carrot_man", always_run),#, enabled=not PC),
 
   PythonProcess("carrot_server", "selfdrive.carrot.carrot_server", always_run),

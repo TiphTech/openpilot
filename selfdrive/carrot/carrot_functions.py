@@ -8,6 +8,7 @@ from openpilot.common.realtime import DT_MDL
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.filter_simple import MyMovingAverage
 from openpilot.selfdrive.selfdrived.events import Events
+from openpilot.selfdrive.carrot.carrot_learning import CarrotLearner
 
 EventName = log.OnroadEvent.EventName
 LaneChangeState = log.LaneChangeState
@@ -136,9 +137,11 @@ class CarrotPlanner:
     self.xDistToTurn = 0
     self.atcType = ""
     self.atc_active = False
+    self.tFollowSpeedFactor = 0.0 # 고속 주행 시 추가 차간 거리 가중치
 
     self._stop_x_rl = None
     self.last_event_time = 0.0
+    self.learner = CarrotLearner()
 
   def _params_update(self):
     self.frame += 1
@@ -163,6 +166,7 @@ class CarrotPlanner:
       self.tFollowGap2 = self.params.get_float("TFollowGap2") / 100.
       self.tFollowGap3 = self.params.get_float("TFollowGap3") / 100.
       self.tFollowGap4 = self.params.get_float("TFollowGap4") / 100.
+      self.tFollowSpeedFactor = self.params.get_float("TFollowSpeedFactor") / 100.
       self.dynamicTFollow = self.params.get_float("DynamicTFollow") / 100.
       self.dynamicTFollowLC = self.params.get_float("DynamicTFollowLC") / 100.
       self.enableSpeedTF = self.params.get_int("EnableSpeedTF")
@@ -250,6 +254,12 @@ class CarrotPlanner:
       s = float(np.clip(v_ego * CV.MS_TO_KPH / 100.0, 0.0, 1.0))
       scale = (1.0 - reduce) + reduce * s
       tf_target *= scale
+
+    # 고속 주행 시 추가 차간 거리 가중치 (TFollowSpeedFactor)
+    # v_ego가 높을수록 차간 거리를 추가로 확보함
+    if self.tFollowSpeedFactor > 0:
+      speed_boost = float(np.clip((v_ego * CV.MS_TO_KPH - 60.0) / 100.0, 0.0, 1.0))
+      tf_target += speed_boost * self.tFollowSpeedFactor
 
     return float(tf_target)
 
@@ -627,6 +637,28 @@ class CarrotPlanner:
     self.stop_dist = stop_dist
     self.mode = mode
     #return v_cruise, stop_dist, mode
+
+    # Auto-Tuner: 학습 데이터 수집
+    from cereal import car
+    gear_park = carstate.gearShifter == car.CarState.GearShifter.park
+    engaged = sm.alive.get('selfdriveState', False) and sm['selfdriveState'].enabled
+    
+    # 현재 GAP 단계 파악 (Personality 기반)
+    personality = sm['selfdriveState'].personality
+    current_gap = 2  # default standard
+    if personality == log.LongitudinalPersonality.moreRelaxed: current_gap = 4
+    elif personality == log.LongitudinalPersonality.relaxed: current_gap = 3
+    elif personality == log.LongitudinalPersonality.standard: current_gap = 2
+    elif personality == log.LongitudinalPersonality.aggressive: current_gap = 1
+    self.learner.set_current_gap(current_gap)
+
+    self.learner.update(v_ego_kph, carstate.gasPressed, engaged, gear_park,
+                        steer_deg=carstate.steeringAngleDeg, steer_pressed=carstate.steeringPressed,
+                        brake_pressed=carstate.brakePressed,
+                        lead_drel=leadOne.dRel if leadOne.status else 0.0,
+                        lead_v_kph=leadOne.vLead * CV.MS_TO_KPH if leadOne.status else 0.0,
+                        a_ego=a_ego, lead_jlead=leadOne.jLead if leadOne.status else 0.0,
+                        v_cruise_kph=v_cruise_kph)
 
     return v_cruise_kph
 
