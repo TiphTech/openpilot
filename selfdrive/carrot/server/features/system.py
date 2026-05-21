@@ -51,6 +51,7 @@ _CARROT_DEFAULT_RESET_EXCLUDED_NAMES = {
   "DeviceType",
   "LanguageSetting",
   "IsMetric",
+  "UseClusterSpeed",
   "OpenpilotEnabledToggle",
   "ExperimentalMode",
   "ExperimentalModeConfirmed",

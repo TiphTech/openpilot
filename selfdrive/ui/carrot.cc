@@ -571,6 +571,7 @@ protected:
 };
 class PathEndDrawer : ModelDrawer {
 private:
+    Params  params;
     QPointF path_end_left_vertex;
     QPointF path_end_right_vertex;
     int     radarTrackId = -1;
@@ -592,6 +593,7 @@ private:
 
     float   v_ego = 0.0;
     float   v_ego_cluster = 0.0;
+    bool    use_cluster_speed = true;
     bool    brakeHoldActive = false;
     int    softHoldActive = 0;
     int    carrotCruise = 0;
@@ -612,6 +614,7 @@ protected:
         auto car_state = sm["carState"].getCarState();
         v_ego = car_state.getVEgo();
         v_ego_cluster = car_state.getVEgoCluster();
+        use_cluster_speed = params.getBool("UseClusterSpeed");
         brakeHoldActive = car_state.getBrakeHoldActive();
         softHoldActive = car_state.getSoftHoldActive();
         carrotCruise = car_state.getCarrotCruise();
@@ -762,7 +765,7 @@ public:
             if (leadSpeedValid) {
                 float lead_speed = leadSpeed;
                 // Match the lead speed readout to the cluster-compensated ego speed used by the HUD.
-                if (v_ego > 1.0f && v_ego_cluster > 1.0f) {
+                if (use_cluster_speed && v_ego > 1.0f && v_ego_cluster > 1.0f) {
                     float cluster_scale = std::clamp(v_ego_cluster / v_ego, 0.8f, 1.25f);
                     lead_speed *= cluster_scale;
                 }
@@ -1936,6 +1939,8 @@ public:
     }
     float   v_cruise = 0.0;
     float   v_ego = 0.0;
+    float   v_ego_real = 0.0;
+    float   v_ego_cluster = 0.0;
     float   apply_speed = 250.0;
     QString apply_source = "";
     bool    latActive = false;
@@ -1985,7 +1990,9 @@ public:
         latActive = car_control.getLatActive();
 
         v_cruise = car_state.getVCruiseCluster();
-        v_ego = car_state.getVEgoCluster();
+        v_ego_real = car_state.getVEgo();
+        v_ego_cluster = car_state.getVEgoCluster();
+        v_ego = params.getBool("UseClusterSpeed") ? v_ego_cluster : v_ego_real;
         if (carrot_man_alive) {
             active_carrot = carrot_man.getActiveCarrot();
             apply_speed = carrot_man.getDesiredSpeed();
@@ -2538,7 +2545,7 @@ public:
 
         float lateral_torque_factor = params.getFloat("LateralTorqueAccelFactor");
         if (params.getInt("LateralTorqueCustom") > 0 && params.getInt("TorqueAccelFactorVariable") > 0) {
-            float v_kph = v_ego * MS_TO_KPH;
+            float v_kph = v_ego_real * MS_TO_KPH;
             float scale = lateral_torque_factor / 3500.0f;
             float v_points[4] = {50.0f, 80.0f, 110.0f, 130.0f};
             float torque_points[4] = {1500.0f * scale, 2000.0f * scale, lateral_torque_factor, 5000.0f * scale};

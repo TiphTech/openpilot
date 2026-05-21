@@ -47,6 +47,7 @@ const DEVICE_TOGGLES = [
   { param: "RecordFront", labelKey: "record_front", defaultLabel: "Record and Upload Driver Camera" },
   { param: "RecordAudio", labelKey: "record_audio", defaultLabel: "Record and Upload Microphone Audio" },
   { param: "IsMetric", labelKey: "is_metric", defaultLabel: "Use Metric System" },
+  { param: "UseClusterSpeed", labelKey: "use_cluster_speed", defaultLabel: "Use Cluster Speed" },
 ];
 
 const DEVICE_DEVELOPER_TOGGLES = [

@@ -74,6 +74,12 @@ TogglesPanel::TogglesPanel(SettingsWindow *parent) : ListWidget(parent) {
       tr("Display speed in km/h instead of mph."),
       "../assets/offroad/icon_metric.png",
     },
+    {
+      "UseClusterSpeed",
+      tr("Use Cluster Speed"),
+      tr("Display your speed and lead car speed using the cluster-compensated reference. Disable to display real estimated speed."),
+      "../assets/offroad/icon_speed_limit.png",
+    },
   };
 
 
