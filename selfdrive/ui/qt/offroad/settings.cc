@@ -694,7 +694,7 @@ SettingsWindow::SettingsWindow(QWidget *parent) : QFrame(parent) {
     panels.append({tr("Firehose"), new FirehosePanel(this)});
   }
   panels.append({ tr("CarrotPilot"), new CarrotPanel(this) });
-  panels.append({ tr("Tuning History"), new AutoTunerHistoryPanel(this) });
+  panels.append({ tr("Autotuner"), new AutoTunerHistoryPanel(this) });
   panels.append({ tr("Developer"), new DeveloperPanel(this) });
 
   nav_btns = new QButtonGroup(this);
