@@ -2470,10 +2470,10 @@ public:
                 disp_speed = (int)(disp_speed * ((s->scene.is_metric) ? 1.0 : KM_TO_MILE) + 0.5);
             }
 
-            int sign_x = 145;
-            int sign_y = 145;
-            int outer_r = 76;
-            int inner_r = 59;
+            int sign_x = 150;
+            int sign_y = 150;
+            int outer_r = 90;
+            int inner_r = 70;
             int sign_size = outer_r * 2;
 
             nvgBeginPath(s->vg);
@@ -2487,7 +2487,7 @@ public:
             nvgFill(s->vg);
 
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-            ui_draw_text(s, sign_x, sign_y - 6, QString::number(disp_speed).toStdString().c_str(), 56, COLOR_BLACK, BOLD, 0.0f, 0.0f);
+            ui_draw_text(s, sign_x, sign_y - 7, QString::number(disp_speed).toStdString().c_str(), 66, COLOR_BLACK, BOLD, 0.0f, 0.0f);
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
             if (speed_camera_ahead) {
               int cam_x = sign_x + outer_r + 16;
@@ -2522,10 +2522,39 @@ public:
             else {
               ui_fill_rect(s->vg, { dx - 65, dy - 38, 130, 90 }, mode_color, 15, 2);
               ui_draw_text(s, dx, dy - 5, "VOLT", 25, COLOR_WHITE, BOLD);
-              sprintf(str, "%.1fV", voltage);
-              ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
+            sprintf(str, "%.1fV", voltage);
+            ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
             }
         }
+
+        float lateral_torque_factor = params.getFloat("LateralTorqueAccelFactor");
+        if (params.getInt("LateralTorqueCustom") > 0 && params.getInt("TorqueAccelFactorVariable") > 0) {
+            float v_kph = v_ego * MS_TO_KPH;
+            float scale = lateral_torque_factor / 3500.0f;
+            float v_points[4] = {50.0f, 80.0f, 110.0f, 130.0f};
+            float torque_points[4] = {1500.0f * scale, 2000.0f * scale, lateral_torque_factor, 5000.0f * scale};
+
+            if (v_kph <= v_points[0]) {
+                lateral_torque_factor = torque_points[0];
+            } else if (v_kph >= v_points[3]) {
+                lateral_torque_factor = torque_points[3];
+            } else {
+                for (int i = 0; i < 3; i++) {
+                    if (v_kph <= v_points[i + 1]) {
+                        float ratio = (v_kph - v_points[i]) / (v_points[i + 1] - v_points[i]);
+                        lateral_torque_factor = torque_points[i] + ratio * (torque_points[i + 1] - torque_points[i]);
+                        break;
+                    }
+                }
+            }
+            lateral_torque_factor = std::clamp(lateral_torque_factor, 1000.0f, 6000.0f);
+        }
+
+        char torque_str[64];
+        snprintf(torque_str, sizeof(torque_str), "LAT TQ %.0f", lateral_torque_factor);
+        nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, s->fb_w - 25, s->fb_h - 45, torque_str, 36, COLOR_WHITE, BOLD, 3.0f, 2.0f);
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
     }
     void drawDateTime(const UIState* s) {
         char str[128];
