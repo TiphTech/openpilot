@@ -2454,8 +2454,15 @@ public:
 
         if (true) {
             int disp_speed = 0;
-            bool camera_limit = xSpdLimit > 0 && xSignType != 22;
-            bool speed_camera_ahead = camera_limit;
+            QString apply_source_lower = apply_source.toLower();
+            bool camera_source = apply_source_lower.contains("cam") ||
+                                 apply_source_lower.contains("hda") ||
+                                 apply_source_lower.contains("section") ||
+                                 apply_source_lower.contains("waze") ||
+                                 apply_source_lower.contains("police");
+            bool camera_type = xSignType >= 0 && xSignType != 22;
+            bool camera_limit = xSpdLimit > 0 && camera_type;
+            bool speed_camera_ahead = camera_limit || camera_source || active_carrot == 3 || active_carrot == 4;
             if (camera_limit) {
                 disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
