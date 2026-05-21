@@ -103,29 +103,17 @@ void OnroadWindow::updateState(const UIState &s) {
   //    bgColor = bg_colors[STATUS_LAT_ACTIVE];
   //}
   const auto car_state = sm["carState"].getCarState();
-  if (car_state.getSteeringPressed()) {
-      bgColor = bg_colors[STATUS_OVERRIDE];
-  }
-  else if (car_control.getLatActive()) {
-      bgColor = bg_colors[STATUS_ENGAGED];
-  }
-  else if (car_state.getLatEnabled()) {
-      bgColor = bg_colors[STATUS_ACTIVE];
-  }
-  else
-      bgColor = bg_colors[STATUS_DISENGAGED];
+  const bool cruise_engaged = selfdrive_state.getEnabled() || car_state.getCruiseState().getEnabled();
+  const bool lat_active = car_control.getLatActive();
+  const bool brake_lights = car_state.getBrakeLights();
 
-  if (car_state.getGasPressed()) {
-      bgColor_long = bg_colors[STATUS_OVERRIDE];
-  }
-  else if (selfdrive_state.getEnabled()) {
-      bgColor_long = bg_colors[STATUS_ENGAGED];
-  }
-  else if (car_state.getCruiseState().getAvailable()) {
-	  bgColor_long = bg_colors[STATUS_ACTIVE];
-  }
-  else
-      bgColor_long = bg_colors[STATUS_DISENGAGED];
+  const QColor inactive_color = QColor(0x00, 0x00, 0x00, 0xf1);
+  const QColor cruise_color = QColor(0x06, 0x4f, 0x24, 0xf1);
+  const QColor lat_color = QColor(0x18, 0xc9, 0x55, 0xf1);
+  const QColor brake_color = QColor(0xff, 0x1e, 0x16, 0xf1);
+
+  bgColor = lat_active ? lat_color : cruise_engaged ? cruise_color : inactive_color;
+  bgColor_long = brake_lights ? brake_color : lat_active ? lat_color : cruise_engaged ? cruise_color : inactive_color;
   if (bg != bgColor || bg_long != bgColor_long) {
     // repaint border
     bg = bgColor;
