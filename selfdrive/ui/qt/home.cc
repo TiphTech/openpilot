@@ -119,7 +119,7 @@ public:
       QJsonObject group_items = recommendations[group].toObject();
       
       QString short_group;
-      bool is_en = (QString::fromStdString(Params().get("LanguageSetting")) != "main_ko");
+      bool is_en = true;
       if (is_en && group.contains("(")) {
         short_group = group.split("(").last().replace(")", "");
       } else {
@@ -189,8 +189,7 @@ public:
 
     connect(btn_guide, &QPushButton::clicked, this, [=]() {
       QString guide_html;
-      if (QString::fromStdString(Params().get("LanguageSetting")) != "main_ko") {
-        guide_html = R"(
+      guide_html = R"(
         <div style='font-size: 45px;'>
         <div style='text-align:center; font-size: 55px; font-weight: bold; margin-bottom: 20px;'>🥕 CarrotPilot Auto-Tuner Guide</div><hr>
         <div style='font-size: 50px; font-weight: bold; margin-top: 20px; margin-bottom: 10px;'>📊 Data Collection &amp; Application</div>
@@ -227,43 +226,6 @@ public:
         - <b>(auto) Hunting</b>: If the system oscillates between accel/decel while following, it recommends widening the gap for stability.
         </div>
         )";
-      } else {
-        guide_html = R"(
-        <div style='font-size: 45px;'>
-        <div style='text-align:center; font-size: 55px; font-weight: bold; margin-bottom: 20px;'>🥕 CarrotPilot Auto-Tuner 사용 안내</div><hr>
-        <div style='font-size: 50px; font-weight: bold; margin-top: 20px; margin-bottom: 10px;'>📊 데이터 수집 및 적용 방식</div>
-        <ul>
-        <li><b>주행 중 데이터 수집</b>: 백그라운드에서 차량의 주행 데이터를 실시간으로 기록하며, 특히 <b>오버라이드(가속 페달 밟음)</b>와 <b>개입(직접 브레이크)</b> 순간을 중점 수집합니다.</li>
-        <li><b>패턴 분석</b>: 현재 설정값과 운전자 주행 성향의 차이를 분석하여 이상적인 파라미터를 계산합니다.</li>
-        <li><b>추천 및 적용</b>: 주차(P) 시 팝업으로 추천값을 안내하며, <b>[선택 적용]</b>을 누르면 즉시 반영됩니다. (설정의 <b>튜닝 이력</b>에서 이력 확인/삭제 가능)</li>
-        </ul><hr>
-        <div style='font-size: 50px; font-weight: bold; margin-top: 20px; margin-bottom: 10px;'>⚙️ 그룹별 튜닝 설정 안내</div>
-        <b>🚀 [가속] (Acceleration)</b><br>
-        오픈파일럿의 크루즈 가속 능력을 조정합니다.<br>
-        - <b>CruiseMaxVals0~6</b>: 속도 대역별 가속 한계치를 높여 굼뜬 출발과 답답한 가속을 개선합니다.<br>
-        <b>🚙 [주행] (Driving)</b><br>
-        종방향(브레이크) 제어 능력을 조정합니다.<br>
-        - <b>JLeadFactor3</b>: 선행차에 대한 제동 시작 시점입니다. 수치가 높을수록 더 멀리서 부드럽게 감속을 시작합니다. (범위 50~200)<br>
-        - <b>TFollowSpeedFactor</b>: 80km/h 이상의 고속 주행 시 자동으로 차간 거리를 추가로 확보하여 안전 마진을 늘려줍니다.<br>
-        - <b>DynamicTFollow</b>: 선행차의 거친 움직임(급가감속)에 대응하여 일시적으로 거리를 조절합니다.<br>
-        고속도 주행 중 선행차 추종 거리를 최적화합니다. 선행차가 있는데도 가속 페달을 자주 밟는다면, 시스템이 지나치게 거리를 넓게 유지하는 것으로 판단하여 해당 GAP의 TFollowGap 값을 줄이는 방향으로 추천합니다.<br>
-        - <b>TFollowGap1~4</b>: GAP 단계별 추종 거리 시간(x0.01초). 낙을수록 가깄워집니다. 최소 0.70초 보장.<br>
-        <b>🎛️ [동적제어] (Dynamic Control)</b><br>
-        브레이크 관련 파라미터가 동시 여러 개 발동되면 합산 과보정 위험이 있어, 이벤트가 가장 많은 1개만 먼저 추천합니다. 나머지는 다음 세션 재평가.<br>
-        - <b>DynamicTFollow</b>: 앞차가 급감속할 때 브레이크 개입이 쌓이면, 시스템이 앞차 감속에 더 빠르게 반응하도록 조정합니다. (0=사용 안 함)<br>
-        - <b>TFollowDecelBoost</b>: 내 차 강감속 중 브레이크 개입이 쌓이면, 감속이 강할수록 자동으로 더 넉넉한 간격을 유지하도록 보완합니다. (기본값 10, 범위 0~100)<br>
-        <b>🔄 [조향] (Steering)</b><br>
-        핸들링 반응성을 조정합니다.<br>
-        - <b>PathOffset / SteerActuatorDelay</b>: 조향 편차 및 지연 보정.<br>
-        <hr>
-        <div style='font-size: 50px; font-weight: bold; margin-top: 20px; margin-bottom: 10px;'>🧠 자율 주행 패턴 자동 감지</div>
-        운전자가 페달을 밟지 않아도, 시스템은 스스로의 제어 품질을 감시합니다:<br>
-        - <b>(auto) 늦은 제동</b>: 시스템이 뒤늦게 급제동을 거는 패턴이 감지되면, 더 일찍 부드럽게 감속하도록 제동 시점 상향을 추천합니다.<br>
-        - <b>(auto) 과도한 가속</b>: 선행차 흐름에 비해 시스템이 너무 거칠게 가속하면, 가속 한계치를 낮추도록 추천합니다.<br>
-        - <b>(auto) 주행 요동(Hunting)</b>: 가속과 감속을 반복하며 거리를 불안정하게 맞추는 패턴이 감지되면, 제어의 여유를 위해 차간 거리를 넓히도록 추천합니다.
-        </div>
-        )";
-      }
       AutoTunerGuideDialog *d = new AutoTunerGuideDialog(guide_html, this);
       d->exec();
       d->deleteLater();
@@ -372,12 +334,12 @@ void HomeWindow::updateState(const UIState &s) {
       break;
   }
 
-  // Auto-Tuner: 주행 중 주차(P단) 전환 시 즉시 팝업 표시 (1초 주기로 체크)
+  // Auto-Tuner: show popup immediately when shifting to Park after driving (checked every second)
   static int carrot_tuner_frame = 0;
   if (carrot_tuner_frame++ % 20 == 0) {
     Params params;
     if (params.getBool("CarrotLearningPopupReady")) {
-      // 중복 팝업 방지를 위해 즉시 플래그 해제
+      // Clear the flag immediately to avoid duplicate popups
       params.putBool("CarrotLearningPopupReady", false);
       
       QString raw = QString::fromStdString(params.get("CarrotLearningRecommend"));
