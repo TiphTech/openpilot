@@ -591,6 +591,7 @@ private:
     int     trafficState = 0;
 
     float   v_ego = 0.0;
+    float   v_ego_cluster = 0.0;
     bool    brakeHoldActive = false;
     int    softHoldActive = 0;
     int    carrotCruise = 0;
@@ -608,10 +609,12 @@ protected:
 		SubMaster& sm = *(s->sm);
 		if (!sm.alive("modelV2")) return false;
 
-        v_ego = sm["carState"].getCarState().getVEgo();
-        brakeHoldActive = sm["carState"].getCarState().getBrakeHoldActive();
-        softHoldActive = sm["carState"].getCarState().getSoftHoldActive();
-        carrotCruise = sm["carState"].getCarState().getCarrotCruise();
+        auto car_state = sm["carState"].getCarState();
+        v_ego = car_state.getVEgo();
+        v_ego_cluster = car_state.getVEgoCluster();
+        brakeHoldActive = car_state.getBrakeHoldActive();
+        softHoldActive = car_state.getSoftHoldActive();
+        carrotCruise = car_state.getCarrotCruise();
         auto selfdrive_state = sm["selfdriveState"].getSelfdriveState();
         longActive = selfdrive_state.getEnabled();
         //longActive = sm["carControl"].getCarControl().getLongActive();
@@ -757,7 +760,13 @@ public:
         if (draw_dist) {
             NVGcolor text_color = (xState==0) ? COLOR_WHITE : (xState==1) ? COLOR_GREY : COLOR_GREEN;
             if (leadSpeedValid) {
-                float lead_speed_disp = leadSpeed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
+                float lead_speed = leadSpeed;
+                // Match the lead speed readout to the cluster-compensated ego speed used by the HUD.
+                if (v_ego > 1.0f && v_ego_cluster > 1.0f) {
+                    float cluster_scale = std::clamp(v_ego_cluster / v_ego, 0.8f, 1.25f);
+                    lead_speed *= cluster_scale;
+                }
+                float lead_speed_disp = lead_speed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
                 sprintf(str, "%.0f %s", lead_speed_disp, s->scene.is_metric ? "km/h" : "mph");
                 ui_draw_text(s, x, disp_y + 58, str, 52, text_color, BOLD);
             }
