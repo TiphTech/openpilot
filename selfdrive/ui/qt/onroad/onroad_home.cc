@@ -97,23 +97,22 @@ void OnroadWindow::updateState(const UIState &s) {
   QColor bgColor_long = bg_colors[s.status];
   const SubMaster& sm = *(s.sm);
   const auto car_control = sm["carControl"].getCarControl();
-  auto selfdrive_state = sm["selfdriveState"].getSelfdriveState();
 
   //if (s.status == STATUS_DISENGAGED && car_control.getLatActive()) {
   //    bgColor = bg_colors[STATUS_LAT_ACTIVE];
   //}
   const auto car_state = sm["carState"].getCarState();
-  const bool cruise_engaged = selfdrive_state.getEnabled() || car_state.getCruiseState().getEnabled();
+  const bool cruise_engaged = car_state.getCruiseState().getEnabled();
   const bool lat_active = car_control.getLatActive();
   const bool brake_lights = car_state.getBrakeLights();
 
   const QColor inactive_color = QColor(0x00, 0x00, 0x00, 0xf1);
-  const QColor cruise_color = QColor(0x06, 0x4f, 0x24, 0xf1);
-  const QColor lat_color = QColor(0x18, 0xc9, 0x55, 0xf1);
+  const QColor cruise_color = QColor(0x05, 0x58, 0x2b, 0xf1);
+  const QColor lat_color = QColor(0x14, 0xb8, 0x50, 0xf1);
   const QColor brake_color = QColor(0xff, 0x1e, 0x16, 0xf1);
 
-  bgColor = lat_active ? lat_color : cruise_engaged ? cruise_color : inactive_color;
-  bgColor_long = brake_lights ? brake_color : lat_active ? lat_color : cruise_engaged ? cruise_color : inactive_color;
+  bgColor = lat_active ? lat_color : inactive_color;
+  bgColor_long = brake_lights ? brake_color : cruise_engaged ? cruise_color : inactive_color;
   if (bg != bgColor || bg_long != bgColor_long) {
     // repaint border
     bg = bgColor;
@@ -211,7 +210,11 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   static int _click_count = 0;
   // 40,150, 200, 150
   Params	params;
-  if (x > 40 && x < 370 && ey > 30 && ey < 240) {   // date & time
+  if (x > 40 && x < 320 && y > 150 && y < 360) {   // current speed: real/cluster speed display
+    bool use_cluster_speed = params.getBool("UseClusterSpeed");
+    params.putBoolNonBlocking("UseClusterSpeed", !use_cluster_speed);
+  }
+  else if (x > 40 && x < 370 && ey > 30 && ey < 240) {   // date & time
     int show_date_time = params.getInt("ShowDateTime");
     params.putIntNonBlocking("ShowDateTime", (show_date_time + 1) % 3);
   }

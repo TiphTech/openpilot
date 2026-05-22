@@ -764,11 +764,17 @@ public:
             NVGcolor text_color = (xState==0) ? COLOR_WHITE : (xState==1) ? COLOR_GREY : COLOR_GREEN;
             if (leadSpeedValid) {
                 float lead_speed = leadSpeed;
+                float ego_speed = v_ego;
                 // Match the lead speed readout to the cluster-compensated ego speed used by the HUD.
                 if (use_cluster_speed && v_ego > 1.0f && v_ego_cluster > 1.0f) {
                     float cluster_scale = std::clamp(v_ego_cluster / v_ego, 0.8f, 1.25f);
                     lead_speed *= cluster_scale;
+                    ego_speed = v_ego_cluster;
                 }
+                float speed_delta = lead_speed - ego_speed;
+                text_color = (speed_delta < -0.5f) ? nvgRGBA(255, 110, 105, 255) :
+                             (speed_delta > 0.5f) ? nvgRGBA(80, 215, 130, 255) :
+                                                     nvgRGBA(105, 175, 255, 255);
                 float lead_speed_disp = lead_speed * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
                 sprintf(str, "%.0f %s", lead_speed_disp, s->scene.is_metric ? "km/h" : "mph");
                 ui_draw_text(s, x, disp_y + 58, str, 52, text_color, BOLD);
@@ -2543,31 +2549,12 @@ public:
             }
         }
 
-        float lateral_torque_factor = params.getFloat("LateralTorqueAccelFactor");
-        if (params.getInt("LateralTorqueCustom") > 0 && params.getInt("TorqueAccelFactorVariable") > 0) {
-            float v_kph = v_ego_real * MS_TO_KPH;
-            float scale = lateral_torque_factor / 3500.0f;
-            float v_points[4] = {50.0f, 80.0f, 110.0f, 130.0f};
-            float torque_points[4] = {1500.0f * scale, 2000.0f * scale, lateral_torque_factor, 5000.0f * scale};
-
-            if (v_kph <= v_points[0]) {
-                lateral_torque_factor = torque_points[0];
-            } else if (v_kph >= v_points[3]) {
-                lateral_torque_factor = torque_points[3];
-            } else {
-                for (int i = 0; i < 3; i++) {
-                    if (v_kph <= v_points[i + 1]) {
-                        float ratio = (v_kph - v_points[i]) / (v_points[i + 1] - v_points[i]);
-                        lateral_torque_factor = torque_points[i] + ratio * (torque_points[i + 1] - torque_points[i]);
-                        break;
-                    }
-                }
-            }
-            lateral_torque_factor = std::clamp(lateral_torque_factor, 1000.0f, 6000.0f);
-        }
+        const auto controls_state = (*(s->sm))["controlsState"].getControlsState();
+        const auto torque_state = controls_state.getLateralControlState().getTorqueState();
+        float lateral_torque_output = torque_state.getOutput();
 
         char torque_str[64];
-        snprintf(torque_str, sizeof(torque_str), "LAT TQ %.0f", lateral_torque_factor);
+        snprintf(torque_str, sizeof(torque_str), "LAT TQ %.2f", lateral_torque_output);
         nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
         ui_draw_text(s, s->fb_w - 25, s->fb_h - 45, torque_str, 36, COLOR_WHITE, BOLD, 3.0f, 2.0f);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
@@ -3145,7 +3132,6 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
-    float steering_angle_pos = 0.0;
     NVGcolor get_tpms_color(float tpms) {
         if (tpms < 5 || tpms > 60) // N/A
             return COLOR_GREEN;
@@ -3196,16 +3182,6 @@ public:
 
         a_ego_width = a_ego_width * 0.5 + (w * std::abs(a_ego) / 4.0) * 0.5;
         ui_fill_rect(vg, { w/2 - (int)(a_ego_width / 2), h - 30, (int)a_ego_width, 30 }, (a_ego >= 0)? COLOR_YELLOW : COLOR_RED, 15);
-
-        steering_angle_pos = steering_angle_pos * 0.5 + (w / 2. - w / 2. * car_state.getSteeringAngleDeg() / 90) * 0.5;
-        int x_st = (int)steering_angle_pos - 50;
-        int x_ed = (int)steering_angle_pos + 50;
-        if (x_st < 0) x_st = 0;
-        if (x_ed < 50) x_ed = 50;
-        if (x_st > w - 50) x_st = w - 50;
-        if (x_ed > w) x_ed = w;
-        ui_fill_rect(vg, { x_st, 0, x_ed - x_st, 30 }, COLOR_ORANGE, 15);
-
 
         //drawTpms(s, w, h);
     }
