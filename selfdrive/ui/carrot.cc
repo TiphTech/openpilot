@@ -8,6 +8,7 @@
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QJsonArray>
+#include <QImage>
 
 //#define __TEST
 //#define __UI_TEST
@@ -153,17 +154,6 @@ void ui_draw_image(const UIState* s, const Rect1& r, const char* name, float alp
     nvgFillPaint(s->vg, imgPaint);
     nvgFill(s->vg);
 }
-
-static void ui_draw_tinted_image(const UIState* s, const Rect1& r, const char* name, NVGcolor color, float alpha) {
-    nvgSave(s->vg);
-    ui_draw_image(s, r, name, alpha);
-    nvgGlobalCompositeOperation(s->vg, NVG_SOURCE_IN);
-    nvgBeginPath(s->vg);
-    nvgRect(s->vg, r.x, r.y, r.w, r.h);
-    nvgFillColor(s->vg, color);
-    nvgFill(s->vg);
-    nvgRestore(s->vg);
-}
 void ui_draw_line(const UIState* s, const QPolygonF& vd, NVGcolor* color, NVGpaint* paint, float stroke = 0.0, NVGcolor strokeColor = COLOR_WHITE) {
     if (vd.size() == 0) return;
 
@@ -217,6 +207,26 @@ void ui_draw_rect(NVGcontext* vg, const Rect1& r, NVGcolor color, int width, flo
     nvgStroke(vg);
 }
 #endif
+
+static int nvg_create_tinted_image(NVGcontext *vg, const char *file, NVGcolor color) {
+    QImage image(file);
+    if (image.isNull()) return 0;
+
+    image = image.convertToFormat(QImage::Format_RGBA8888);
+    const uchar r = static_cast<uchar>(std::round(color.r * 255.0f));
+    const uchar g = static_cast<uchar>(std::round(color.g * 255.0f));
+    const uchar b = static_cast<uchar>(std::round(color.b * 255.0f));
+    for (int y = 0; y < image.height(); ++y) {
+        uchar *line = image.scanLine(y);
+        for (int x = 0; x < image.width(); ++x) {
+            uchar *px = line + x * 4;
+            px[0] = r;
+            px[1] = g;
+            px[2] = b;
+        }
+    }
+    return nvgCreateImageRGBA(vg, image.width(), image.height(), 0, image.constBits());
+}
 
 static inline void fill_rect(NVGcontext* vg, const Rect1& r, const NVGcolor* color, const NVGpaint* paint,
     float radius, float stroke_width, NVGcolor* stroke_color) {
@@ -2310,13 +2320,14 @@ public:
     void drawAutoRoadSpeedAdjustButton(const UIState* s, int sign_x, int sign_y, int outer_r) {
         const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") < 0;
         const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
+        const char *icon_name = auto_adjust_enabled ? "ic_auto_speed_limit_green" : "ic_auto_speed_limit_white";
         const int auto_icon_size = 86;
         const int text_y = sign_y + outer_r + 48;
         const int icon_y = text_y + 12;
 
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         ui_draw_text(s, sign_x, text_y, "AUTO", 34, color, BOLD, 2.0f, 4.0f);
-        ui_draw_tinted_image(s, { sign_x - auto_icon_size / 2, icon_y, auto_icon_size, auto_icon_size }, "ic_auto_speed_limit", color, 1.0f);
+        ui_draw_image(s, { sign_x - auto_icon_size / 2, icon_y, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
     }
 
     void drawHud(UIState* s) {
@@ -3311,7 +3322,6 @@ void ui_nvg_init(UIState *s) {
   {"ic_apn", "../assets/images/img_apn.png"},
   {"ic_hda", "../assets/images/img_hda.png"},
   {"ic_speedcam", "../assets/speedcam.png"},
-  {"ic_auto_speed_limit", "../assets/offroad/icon_speed_limit.png"},
   {"ic_navi_point", "../assets/images/navi_point.png"}
 
   };
@@ -3319,6 +3329,11 @@ void ui_nvg_init(UIState *s) {
     s->images[name] = nvgCreateImage(s->vg, file, 1);
     assert(s->images[name] != 0);
   }
+
+  s->images["ic_auto_speed_limit_white"] = nvg_create_tinted_image(s->vg, "../assets/offroad/icon_speed_limit.png", COLOR_WHITE);
+  assert(s->images["ic_auto_speed_limit_white"] != 0);
+  s->images["ic_auto_speed_limit_green"] = nvg_create_tinted_image(s->vg, "../assets/offroad/icon_speed_limit.png", COLOR_FLUO_GREEN);
+  assert(s->images["ic_auto_speed_limit_green"] != 0);
 }
 void ui_resize(UIState *s, int width, int height) {
   s->fb_w = width;
