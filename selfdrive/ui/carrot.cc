@@ -2549,12 +2549,27 @@ public:
             }
         }
 
-        const auto controls_state = (*(s->sm))["controlsState"].getControlsState();
-        const auto torque_state = controls_state.getLateralControlState().getTorqueState();
-        float lateral_torque_output = torque_state.getOutput();
+        const auto car_state = (*(s->sm))["carState"].getCarState();
+        float torque_accel_factor = params.getFloat("LateralTorqueAccelFactor");
+        if (params.getBool("TorqueAccelFactorVariable")) {
+            const float v_kph = car_state.getVEgo() * 3.6f;
+            const float scale = torque_accel_factor / 3500.0f;
+            if (v_kph < 50.0f) {
+                torque_accel_factor = 1500.0f * scale;
+            } else if (v_kph < 80.0f) {
+                torque_accel_factor = 1500.0f * scale + (v_kph - 50.0f) * (500.0f * scale / 30.0f);
+            } else if (v_kph < 110.0f) {
+                torque_accel_factor = 2000.0f * scale + (v_kph - 80.0f) * ((torque_accel_factor - 2000.0f * scale) / 30.0f);
+            } else if (v_kph < 130.0f) {
+                torque_accel_factor = torque_accel_factor + (v_kph - 110.0f) * ((5000.0f * scale - torque_accel_factor) / 20.0f);
+            } else {
+                torque_accel_factor = 5000.0f * scale;
+            }
+            torque_accel_factor = std::clamp(torque_accel_factor, 1000.0f, 6000.0f);
+        }
 
         char torque_str[64];
-        snprintf(torque_str, sizeof(torque_str), "LAT TQ %.2f", lateral_torque_output);
+        snprintf(torque_str, sizeof(torque_str), "LAT TQ %.0f", torque_accel_factor);
         nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
         ui_draw_text(s, s->fb_w - 25, s->fb_h - 45, torque_str, 36, COLOR_WHITE, BOLD, 3.0f, 2.0f);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
