@@ -894,7 +894,7 @@ class CarrotServ:
       self.active_carrot = 0
 
     limit_speed = 200
-    if self.autoRoadSpeedLimitOffset >= 0 and self.active_carrot>=2:
+    if self.autoRoadSpeedLimitOffset >= 0:
       if self.nRoadLimitSpeed >= 30:
         road_speed_limit_offset = self.autoRoadSpeedLimitOffset
         if not self.is_metric:
