@@ -187,6 +187,7 @@ class VCruiseCarrot:
     self._activate_cruise = 0
     self._lat_enabled = self.params.get_int("AutoEngage") > 0
     self._v_cruise_kph_at_brake = 0
+    self._v_cruise_kph_resume = 0
     self.cruise_state_available_last = False
 
     self._paddle_decel_active = False
@@ -310,6 +311,8 @@ class VCruiseCarrot:
 
     self.v_cruise_kph_last = self.v_cruise_kph
     self.is_metric = is_metric
+    if CC.enabled and self._cruise_speed_min <= self.v_cruise_kph <= self._cruise_speed_max:
+      self._v_cruise_kph_resume = self.v_cruise_kph
 
     self._cancel_timer = max(0, self._cancel_timer - 1)
 
@@ -497,10 +500,9 @@ class VCruiseCarrot:
         if self._soft_hold_active > 0:
           self._soft_hold_active = 0
         elif self._cruise_ready or not CC.enabled or CS.cruiseState.standstill or self.carrot_cruise_active:
-          if False: #self._cruise_button_mode in [2, 3]:
-            road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
-            if road_limit_kph > 1.0:
-              v_cruise_kph = max(v_cruise_kph, road_limit_kph)
+          v_cruise_kph = self._resume_cruise_speed()
+          self._v_cruise_kph_at_brake = 0
+          self._add_log(f"Cruise resume speed {v_cruise_kph:.0f}")
         elif self._v_cruise_kph_at_brake > 0 and v_cruise_kph < self._v_cruise_kph_at_brake:
           v_cruise_kph = self._v_cruise_kph_at_brake
           self._v_cruise_kph_at_brake = 0
@@ -558,6 +560,7 @@ class VCruiseCarrot:
         print("lfaButton")
       elif button_type == ButtonType.cancel:
         self._paddle_decel_active = False
+        self._store_resume_cruise_speed(v_cruise_kph)
         if self._cancel_button_mode in [1]:
           self._lat_enabled = False
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
@@ -579,6 +582,7 @@ class VCruiseCarrot:
 
       elif button_type == ButtonType.cancel:
         self._cruise_cancel_state = True
+        self._store_resume_cruise_speed(v_cruise_kph)
         self._lat_enabled = False
         self._paddle_decel_active = False
         #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
@@ -621,6 +625,25 @@ class VCruiseCarrot:
           break
     return v_cruise_kph
 
+  def _road_limit_resume_speed(self):
+    if self.nRoadLimitSpeed < 30:
+      return 0
+    if self.autoRoadSpeedLimitOffset < 0:
+      return self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
+    return self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
+
+  def _store_resume_cruise_speed(self, v_cruise_kph):
+    if self._cruise_speed_min <= v_cruise_kph <= self._cruise_speed_max:
+      self._v_cruise_kph_resume = v_cruise_kph
+
+  def _resume_cruise_speed(self):
+    resume_speed = self._v_cruise_kph_at_brake if self._v_cruise_kph_at_brake > 0 else self._v_cruise_kph_resume
+    if resume_speed <= 0:
+      resume_speed = self._road_limit_resume_speed()
+    if resume_speed <= 0:
+      resume_speed = max(self.v_ego_kph_set, self._cruise_speed_min)
+    return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
+
   def _auto_speed_up(self, v_cruise_kph):
     #if self._pause_auto_speed_up:
     #  return v_cruise_kph
@@ -656,6 +679,8 @@ class VCruiseCarrot:
     return v_cruise_kph
 
   def _cruise_control(self, enable, cancel_timer, reason):
+    if enable < 0:
+      self._store_resume_cruise_speed(self.v_cruise_kph)
     if self._cruise_cancel_state: # and self._soft_hold_active != 2:
       self._add_log(reason + " > Cancel state")
     elif enable > 0 and self._cancel_timer > 0 and cancel_timer >= 0:
@@ -816,6 +841,7 @@ class VCruiseCarrot:
       self._brake_pressed_count = max(1, self._brake_pressed_count + 1)
       if self._brake_pressed_count == 1 and self.enabled_last:
         self._v_cruise_kph_at_brake = self.v_cruise_kph
+        self._store_resume_cruise_speed(self.v_cruise_kph)
         self._add_log(f"{self.v_cruise_kph} Cruise speed at brake")
       self._soft_hold_count = self._soft_hold_count + 1 if CS.vEgo < 0.1 and CS.gearShifter == GearShifter.drive else 0
       if self.autoCruiseControl == 0 or self.CP.pcmCruise:
