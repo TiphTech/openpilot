@@ -39,6 +39,7 @@
 #define COLOR_OCHRE_ALPHA(x) nvgRGBA(218, 111, 37, x)
 #define COLOR_GREEN nvgRGBA(0, 203, 0, 255)
 #define COLOR_GREEN_ALPHA(x) nvgRGBA(0, 153, 0, x)
+#define COLOR_FLUO_GREEN nvgRGBA(57, 255, 20, 255)
 #define COLOR_BLUE nvgRGBA(0, 0, 255, 255)
 #define COLOR_BLUE_ALPHA(x) nvgRGBA(0, 0, 255, x)
 #define COLOR_ORANGE nvgRGBA(255, 175, 3, 255)
@@ -151,6 +152,17 @@ void ui_draw_image(const UIState* s, const Rect1& r, const char* name, float alp
     nvgRect(s->vg, r.x, r.y, r.w, r.h);
     nvgFillPaint(s->vg, imgPaint);
     nvgFill(s->vg);
+}
+
+static void ui_draw_tinted_image(const UIState* s, const Rect1& r, const char* name, NVGcolor color, float alpha) {
+    nvgSave(s->vg);
+    ui_draw_image(s, r, name, alpha);
+    nvgGlobalCompositeOperation(s->vg, NVG_SOURCE_IN);
+    nvgBeginPath(s->vg);
+    nvgRect(s->vg, r.x, r.y, r.w, r.h);
+    nvgFillColor(s->vg, color);
+    nvgFill(s->vg);
+    nvgRestore(s->vg);
 }
 void ui_draw_line(const UIState* s, const QPolygonF& vd, NVGcolor* color, NVGpaint* paint, float stroke = 0.0, NVGcolor strokeColor = COLOR_WHITE) {
     if (vd.size() == 0) return;
@@ -1096,6 +1108,7 @@ protected:
             }
         }
 	}
+
     int  drawTurnInfoHud(const UIState* s) {
       if (s->fb_w < 1200) return -1;
 #ifdef __UI_TEST
@@ -2294,6 +2307,18 @@ public:
     int   memoryUsage = 0;
     float freeSpace = 0.0f;
     float voltage = 0.0f;
+    void drawAutoRoadSpeedAdjustButton(const UIState* s, int sign_x, int sign_y, int outer_r) {
+        const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") < 0;
+        const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
+        const int auto_icon_size = 86;
+        const int text_y = sign_y + outer_r + 48;
+        const int icon_y = text_y + 12;
+
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, sign_x, text_y, "AUTO", 34, color, BOLD, 2.0f, 4.0f);
+        ui_draw_tinted_image(s, { sign_x - auto_icon_size / 2, icon_y, auto_icon_size, auto_icon_size }, "ic_auto_speed_limit", color, 1.0f);
+    }
+
     void drawHud(UIState* s) {
         int show_device_state = params.getInt("ShowDeviceState");
         blink_timer = (blink_timer + 1) % 16;
@@ -2518,6 +2543,7 @@ public:
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
             }
+            drawAutoRoadSpeedAdjustButton(s, sign_x, sign_y, outer_r);
         }
 
         if (show_device_state) {
@@ -3285,6 +3311,7 @@ void ui_nvg_init(UIState *s) {
   {"ic_apn", "../assets/images/img_apn.png"},
   {"ic_hda", "../assets/images/img_hda.png"},
   {"ic_speedcam", "../assets/speedcam.png"},
+  {"ic_auto_speed_limit", "../assets/offroad/icon_speed_limit.png"},
   {"ic_navi_point", "../assets/images/navi_point.png"}
 
   };
