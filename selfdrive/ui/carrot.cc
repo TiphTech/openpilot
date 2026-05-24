@@ -2484,9 +2484,11 @@ public:
                                  apply_source_lower.contains("police");
             bool camera_type = xSignType >= 0 && xSignType != 22;
             bool camera_limit = xSpdLimit > 0 && camera_type;
-            bool speed_camera_ahead = camera_limit || camera_source || active_carrot == 3 || active_carrot == 4;
-            if (camera_limit) {
-                disp_speed = (int)(xSpdLimit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
+            bool stock_camera_limit = carState.getSpeedLimit() > 0 && carState.getSpeedLimitDistance() > 0;
+            bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source || active_carrot == 3 || active_carrot == 4;
+            if (camera_limit || stock_camera_limit) {
+                float camera_speed_limit = camera_limit ? xSpdLimit : carState.getSpeedLimit();
+                disp_speed = (int)(camera_speed_limit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
                 disp_speed = nRoadLimitSpeed;
                 disp_speed = (int)(disp_speed * ((s->scene.is_metric) ? 1.0 : KM_TO_MILE) + 0.5);
