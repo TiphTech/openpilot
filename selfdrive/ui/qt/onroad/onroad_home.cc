@@ -107,7 +107,7 @@ void OnroadWindow::updateState(const UIState &s) {
   const bool brake_lights = car_state.getBrakeLights();
 
   const QColor inactive_color = QColor(0x00, 0x00, 0x00, 0xf1);
-  const QColor cruise_color = QColor(0x05, 0x58, 0x2b, 0xf1);
+  const QColor cruise_color = QColor(0x14, 0xb8, 0x50, 0xf1);
   const QColor lat_color = QColor(0x14, 0xb8, 0x50, 0xf1);
   const QColor brake_color = QColor(0xff, 0x1e, 0x16, 0xf1);
 

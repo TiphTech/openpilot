@@ -3176,13 +3176,6 @@ public:
         ui_fill_rect(vg, {w - 50, h/2 - 95, 50, 190}, (_right_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
         ui_fill_rect(vg, {0, h/2 - 95, 50, 190}, (_left_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
 
-        const SubMaster& sm = *(s->sm);
-        auto car_state = sm["carState"].getCarState();
-        float a_ego = car_state.getAEgo();
-
-        a_ego_width = a_ego_width * 0.5 + (w * std::abs(a_ego) / 4.0) * 0.5;
-        ui_fill_rect(vg, { w/2 - (int)(a_ego_width / 2), h - 30, (int)a_ego_width, 30 }, (a_ego >= 0)? COLOR_YELLOW : COLOR_RED, 15);
-
         //drawTpms(s, w, h);
     }
 };
