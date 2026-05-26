@@ -684,7 +684,9 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
   md = CS.MD
   if not hasattr(create_ccnc_messages, '_lane_line_check') or frame % 100 == 0:
     create_ccnc_messages._lane_line_check = Params().get_int("LaneLineCheck")
+    create_ccnc_messages._lane_change_blinker_hold = Params().get_int("LaneChangeBlinkerHold")
   lane_line_check = create_ccnc_messages._lane_line_check
+  lane_change_blinker_hold = create_ccnc_messages._lane_change_blinker_hold
   desire, lane_changing, lane_change_state, lane_change_direction = _get_desire_and_lane_changing(md)
 
   # Keep vehicle turn signal hold active through the whole lane-change state machine.
@@ -696,7 +698,7 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
     create_ccnc_messages._blink_hold_frames = 20  # ~1s at 20Hz
 
   lane_change_active = lane_change_state != LaneChangeState.off
-  if lane_change_active:
+  if lane_change_blinker_hold > 0 and lane_change_active:
     if lane_change_direction == 1 or lane_changing == 3:
       create_ccnc_messages._blink_hold_left = create_ccnc_messages._blink_hold_frames
       create_ccnc_messages._blink_hold_right = 0
