@@ -201,6 +201,7 @@ class VCruiseCarrot:
     self.desiredSpeed = 250
     self.road_limit_kph = 30
     self.nRoadLimitSpeed_last = 30
+    self._last_auto_applied_road_limit = 0
 
     self.carrot_cmd_index_last = 0
     self.carrot_cmd_index = 0
@@ -665,11 +666,15 @@ class VCruiseCarrot:
 
     if not self._pause_auto_speed_up and self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
       v_cruise_kph = min(v_cruise_kph + 5, road_limit_kph)
-    elif self.autoRoadSpeedAdjust < 0 and self.nRoadLimitSpeed != self.nRoadLimitSpeed_last:  # 도로제한속도가 바뀌면, 바뀐속도로 속도를 바꿈.
-      if self.autoRoadSpeedLimitOffset < 0:
-        v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
-      else:
-        v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
+    elif self.autoRoadSpeedAdjust < 0:
+      # Apply automatic set speed once per detected limit value.
+      # This prevents repeated HDA/road-limit updates from constantly overriding manual +/-. 
+      if self.nRoadLimitSpeed > 0 and self.nRoadLimitSpeed != self._last_auto_applied_road_limit:
+        if self.autoRoadSpeedLimitOffset < 0:
+          v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
+        else:
+          v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
+        self._last_auto_applied_road_limit = self.nRoadLimitSpeed
     elif self.nRoadLimitSpeed < self.nRoadLimitSpeed_last and self.autoRoadSpeedAdjust > 0:
       new_road_limit_kph = self.nRoadLimitSpeed * self.autoRoadSpeedAdjust + v_cruise_kph * (1 - self.autoRoadSpeedAdjust)
       self._add_log(f"AutoSpeed change {v_cruise_kph} -> {new_road_limit_kph:.1f}")

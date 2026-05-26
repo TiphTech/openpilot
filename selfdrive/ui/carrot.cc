@@ -2312,6 +2312,7 @@ public:
     char    gear_str_last[32] = "";
     int     blink_timer = 0;
     int     disp_timer = 0;
+    int     speed_camera_icon_hold_timer = 0;
     float cpuTemp = 0.0f;
     float cpuUsage = 0.0f;
     int   memoryUsage = 0;
@@ -2437,13 +2438,7 @@ public:
           ui_draw_text(s, dx, dy - 45, "GPS", 30, COLOR_GREEN, BOLD);
         }
 
-        char gap_str[32];
         int gap = params.getInt("LongitudinalPersonality") + 1;
-        dx = bx + 220;
-        dy = by + 77;
-        sprintf(gap_str, "%d", gap);
-        ui_draw_text(s, dx, dy, gap_str, 40, COLOR_WHITE, BOLD);
-        if (gap_last != gap) ui_draw_text_a(s, dx, dy, gap_str, 40, COLOR_WHITE, BOLD);
         gap_last = gap;
 
         dx = bx + 300 - 30;
@@ -2522,6 +2517,12 @@ public:
             bool camera_limit = xSpdLimit > 0 && camera_type;
             bool stock_camera_limit = carState.getSpeedLimit() > 0 && carState.getSpeedLimitDistance() > 0;
             bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source || active_carrot == 3 || active_carrot == 4;
+            if (speed_camera_ahead) {
+              speed_camera_icon_hold_timer = 120;  // keep visible for ~2.4s
+            } else if (speed_camera_icon_hold_timer > 0) {
+              speed_camera_icon_hold_timer--;
+            }
+            const bool show_speed_camera_icon = speed_camera_ahead || speed_camera_icon_hold_timer > 0;
             if (camera_limit || stock_camera_limit) {
                 float camera_speed_limit = camera_limit ? xSpdLimit : carState.getSpeedLimit();
                 disp_speed = (int)(camera_speed_limit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
@@ -2549,7 +2550,7 @@ public:
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
             ui_draw_text(s, sign_x, sign_y - 7, QString::number(disp_speed).toStdString().c_str(), 66, COLOR_BLACK, BOLD, 0.0f, 0.0f);
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-            if (speed_camera_ahead) {
+            if (show_speed_camera_icon && blink_timer > 7) {
               int cam_x = sign_x + outer_r + 16;
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
@@ -2592,17 +2593,15 @@ public:
         float torque_accel_factor = params.getFloat("LateralTorqueAccelFactor");
         if (params.getBool("TorqueAccelFactorVariable")) {
             const float v_kph = car_state.getVEgo() * 3.6f;
-            const float scale = torque_accel_factor / 3500.0f;
-            if (v_kph < 50.0f) {
-                torque_accel_factor = 1500.0f * scale;
-            } else if (v_kph < 80.0f) {
-                torque_accel_factor = 1500.0f * scale + (v_kph - 50.0f) * (500.0f * scale / 30.0f);
+            const float base_factor = torque_accel_factor;
+            if (v_kph <= 50.0f) {
+                torque_accel_factor = 1500.0f;
             } else if (v_kph < 110.0f) {
-                torque_accel_factor = 2000.0f * scale + (v_kph - 80.0f) * ((torque_accel_factor - 2000.0f * scale) / 30.0f);
+                torque_accel_factor = 1500.0f + (v_kph - 50.0f) * ((base_factor - 1500.0f) / 60.0f);
             } else if (v_kph < 130.0f) {
-                torque_accel_factor = torque_accel_factor + (v_kph - 110.0f) * ((5000.0f * scale - torque_accel_factor) / 20.0f);
+                torque_accel_factor = base_factor + (v_kph - 110.0f) * ((6000.0f - base_factor) / 20.0f);
             } else {
-                torque_accel_factor = 5000.0f * scale;
+                torque_accel_factor = 6000.0f;
             }
             torque_accel_factor = std::clamp(torque_accel_factor, 1000.0f, 6000.0f);
         }
@@ -2751,6 +2750,7 @@ public:
     void makeDeviceInfo(const UIState* s) {
         SubMaster& sm = *(s->sm);
         auto deviceState = sm["deviceState"].getDeviceState();
+        const auto thermalStatus = deviceState.getThermalStatus();
         freeSpace = deviceState.getFreeSpacePercent();
         memoryUsage = deviceState.getMemoryUsagePercent();
         const auto cpuTempC = deviceState.getCpuTempC();
@@ -2774,6 +2774,13 @@ public:
 
         auto peripheralState = sm["peripheralState"].getPeripheralState();
         voltage = peripheralState.getVoltage() / 1000.0;
+
+        const bool thermal_critical = thermalStatus >= cereal::DeviceState::ThermalStatus::RED;
+        const bool memory_critical = memoryUsage >= 90;
+        const bool disk_critical = freeSpace <= 10.0f;
+        if ((thermal_critical || memory_critical || disk_critical) && params.getInt("ShowDeviceState") == 0) {
+            params.putIntNonBlocking("ShowDeviceState", 1);
+        }
     }
     void drawDeviceInfo(const UIState* s) {
 #ifdef WSL2

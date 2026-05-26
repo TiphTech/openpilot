@@ -521,7 +521,9 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    ret.brakeLights = ret.brakePressed or cp.vl["TCS"]["BrakeLight"] == 1 or ret.aEgo < -0.5
+    # Use the vehicle's actual stop lamp state on CAN-FD.
+    # Keep brakePressed as a conservative fallback, but avoid synthetic decel-based toggling.
+    ret.brakeLights = (cp.vl["TCS"]["BrakeLight"] == 1) or ret.brakePressed
 
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
 
