@@ -3,7 +3,7 @@ import numpy as np
 from opendbc.car import CanBusBase
 from opendbc.car.crc import CRC16_XMODEM
 from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
-from openpilot.common.params import Params
+from openpilot.common.params import Params, UnknownKeyName
 from opendbc.car.common.conversions import Conversions as CV
 from cereal import log
 
@@ -684,7 +684,11 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
   md = CS.MD
   if not hasattr(create_ccnc_messages, '_lane_line_check') or frame % 100 == 0:
     create_ccnc_messages._lane_line_check = Params().get_int("LaneLineCheck")
-    create_ccnc_messages._lane_change_blinker_hold = Params().get_int("LaneChangeBlinkerHold")
+    try:
+      create_ccnc_messages._lane_change_blinker_hold = Params().get_int("LaneChangeBlinkerHold")
+    except UnknownKeyName:
+      # Backward compatibility when params_pyx on device is stale and key is unknown.
+      create_ccnc_messages._lane_change_blinker_hold = 1
   lane_line_check = create_ccnc_messages._lane_line_check
   lane_change_blinker_hold = create_ccnc_messages._lane_change_blinker_hold
   desire, lane_changing, lane_change_state, lane_change_direction = _get_desire_and_lane_changing(md)
