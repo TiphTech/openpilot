@@ -657,6 +657,22 @@ class VCruiseCarrot:
       elif v_cruise_kph < apply_speed:
         v_cruise_kph = apply_speed
 
+    # Auto road speed adjust must work even when AutoSpeedUptoRoadSpeedLimit is 0
+    # (user wants road-sign updates without lead-car-based speed-up behavior).
+    if self.autoRoadSpeedAdjust < 0:
+      if self.nRoadLimitSpeed > 0 and self.nRoadLimitSpeed != self._last_auto_applied_road_limit:
+        if self.autoRoadSpeedLimitOffset < 0:
+          v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
+        else:
+          v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
+        self._last_auto_applied_road_limit = self.nRoadLimitSpeed
+      self.road_limit_kph = self.nRoadLimitSpeed
+      self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
+      return v_cruise_kph
+    else:
+      # Re-arm one-shot auto-apply when the feature is disabled/re-enabled.
+      self._last_auto_applied_road_limit = 0
+
     road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
     if road_limit_kph < 1.0:
       return v_cruise_kph
@@ -666,15 +682,6 @@ class VCruiseCarrot:
 
     if not self._pause_auto_speed_up and self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
       v_cruise_kph = min(v_cruise_kph + 5, road_limit_kph)
-    elif self.autoRoadSpeedAdjust < 0:
-      # Apply automatic set speed once per detected limit value.
-      # This prevents repeated HDA/road-limit updates from constantly overriding manual +/-. 
-      if self.nRoadLimitSpeed > 0 and self.nRoadLimitSpeed != self._last_auto_applied_road_limit:
-        if self.autoRoadSpeedLimitOffset < 0:
-          v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
-        else:
-          v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
-        self._last_auto_applied_road_limit = self.nRoadLimitSpeed
     elif self.nRoadLimitSpeed < self.nRoadLimitSpeed_last and self.autoRoadSpeedAdjust > 0:
       new_road_limit_kph = self.nRoadLimitSpeed * self.autoRoadSpeedAdjust + v_cruise_kph * (1 - self.autoRoadSpeedAdjust)
       self._add_log(f"AutoSpeed change {v_cruise_kph} -> {new_road_limit_kph:.1f}")
