@@ -152,9 +152,9 @@ class LatControlTorque(LatControl):
 
         if torque_accel_factor_variable:
           v_kph = CS.vEgo * 3.6
-          # Piecewise interpolation target:
-          # <=50 km/h: 1500, 110 km/h: base_factor, >=130 km/h: 6000
-          dynamic_factor = np.interp(v_kph, [50.0, 110.0, 130.0], [1500.0, base_factor, 6000.0])
+          # Linear interpolation target:
+          # <=50 km/h: 1600, >=130 km/h: 5200
+          dynamic_factor = np.interp(v_kph, [50.0, 130.0], [1600.0, 5200.0])
           base_factor = float(np.clip(dynamic_factor, 1000.0, 6000.0))
         self.torque_params.latAccelFactor = base_factor*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001

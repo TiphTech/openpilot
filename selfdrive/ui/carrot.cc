@@ -2593,15 +2593,12 @@ public:
         float torque_accel_factor = params.getFloat("LateralTorqueAccelFactor");
         if (params.getBool("TorqueAccelFactorVariable")) {
             const float v_kph = car_state.getVEgo() * 3.6f;
-            const float base_factor = torque_accel_factor;
             if (v_kph <= 50.0f) {
-                torque_accel_factor = 1500.0f;
-            } else if (v_kph < 110.0f) {
-                torque_accel_factor = 1500.0f + (v_kph - 50.0f) * ((base_factor - 1500.0f) / 60.0f);
-            } else if (v_kph < 130.0f) {
-                torque_accel_factor = base_factor + (v_kph - 110.0f) * ((6000.0f - base_factor) / 20.0f);
+                torque_accel_factor = 1600.0f;
+            } else if (v_kph >= 130.0f) {
+                torque_accel_factor = 5200.0f;
             } else {
-                torque_accel_factor = 6000.0f;
+                torque_accel_factor = 1600.0f + (v_kph - 50.0f) * ((5200.0f - 1600.0f) / 80.0f);
             }
             torque_accel_factor = std::clamp(torque_accel_factor, 1000.0f, 6000.0f);
         }
