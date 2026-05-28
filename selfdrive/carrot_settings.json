@@ -1746,22 +1746,6 @@
       "cdescr": "0: 颜色+类型(黄线阻止), 1: 仅类型(虚线/实线), 2: 仅类型+实线扭矩override"
     },
     {
-      "group": "조향일반",
-      "name": "LaneChangeBlinkerHold",
-      "title": "차선변경 방향지시등 유지(1)",
-      "descr": "0: 사용안함\n1: 차선변경 완료까지 유지",
-      "egroup": "LAT",
-      "etitle": "LaneChange Blinker Hold(1)",
-      "edescr": "0:Off, 1:Keep vehicle blinker until lane change ends",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "unit": 1,
-      "cgroup": "转向",
-      "ctitle": "变道转向灯保持 (1)",
-      "cdescr": "0: 关闭, 1: 保持到变道结束"
-    },
-    {
       "group": "시작",
       "name": "HapticFeedbackWhenSpeedCamera",
       "title": "핸들햅틱기능사용(0)",

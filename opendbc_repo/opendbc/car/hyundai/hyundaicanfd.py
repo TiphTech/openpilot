@@ -3,7 +3,7 @@ import numpy as np
 from opendbc.car import CanBusBase
 from opendbc.car.crc import CRC16_XMODEM
 from opendbc.car.hyundai.values import HyundaiFlags, HyundaiExtFlags
-from openpilot.common.params import Params, UnknownKeyName
+from openpilot.common.params import Params
 from opendbc.car.common.conversions import Conversions as CV
 from cereal import log
 
@@ -684,36 +684,8 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
   md = CS.MD
   if not hasattr(create_ccnc_messages, '_lane_line_check') or frame % 100 == 0:
     create_ccnc_messages._lane_line_check = Params().get_int("LaneLineCheck")
-    try:
-      create_ccnc_messages._lane_change_blinker_hold = Params().get_int("LaneChangeBlinkerHold")
-    except UnknownKeyName:
-      # Backward compatibility when params_pyx on device is stale and key is unknown.
-      create_ccnc_messages._lane_change_blinker_hold = 1
   lane_line_check = create_ccnc_messages._lane_line_check
-  lane_change_blinker_hold = create_ccnc_messages._lane_change_blinker_hold
   desire, lane_changing, lane_change_state, lane_change_direction = _get_desire_and_lane_changing(md)
-
-  # Keep vehicle turn signal hold active through the whole lane-change state machine.
-  # A short hold timer bridges transient state drops between frames.
-  if not hasattr(create_ccnc_messages, "_blink_hold_left"):
-    create_ccnc_messages._blink_hold_left = 0
-    create_ccnc_messages._blink_hold_right = 0
-  if not hasattr(create_ccnc_messages, "_blink_hold_frames"):
-    create_ccnc_messages._blink_hold_frames = 20  # ~1s at 20Hz
-
-  lane_change_active = lane_change_state != LaneChangeState.off
-  if lane_change_blinker_hold > 0 and lane_change_active:
-    if lane_change_direction == 1 or lane_changing == 3:
-      create_ccnc_messages._blink_hold_left = create_ccnc_messages._blink_hold_frames
-      create_ccnc_messages._blink_hold_right = 0
-    elif lane_change_direction == 2 or lane_changing == 4:
-      create_ccnc_messages._blink_hold_right = create_ccnc_messages._blink_hold_frames
-      create_ccnc_messages._blink_hold_left = 0
-  else:
-    if create_ccnc_messages._blink_hold_left > 0:
-      create_ccnc_messages._blink_hold_left -= 1
-    if create_ccnc_messages._blink_hold_right > 0:
-      create_ccnc_messages._blink_hold_right -= 1
 
   if CP.flags & HyundaiFlags.CAMERA_SCC.value:
     HDA_CntrlModSta = 0
@@ -861,9 +833,6 @@ def create_ccnc_messages(CP, packer, CAN, frame, CC, CS, hud_control,
       if CS.adrv_0x1ea is not None:
         values = copy.copy(CS.adrv_0x1ea)
         rx_counter = values.pop("COUNTER", None)
-        # blinker hold during full lane change (including transient gaps)
-        values['LEFT_BLINK_HOLD'] = 1 if create_ccnc_messages._blink_hold_left > 0 else 0
-        values['RIGHT_BLINK_HOLD'] = 1 if create_ccnc_messages._blink_hold_right > 0 else 0
 
         _make_ccnc_values(
           values, CS, lat_active, frame, hud_control,

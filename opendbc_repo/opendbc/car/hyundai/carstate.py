@@ -521,8 +521,7 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    # Use the vehicle's actual stop lamp state on CAN-FD.
-    # Keep brakePressed as a conservative fallback, but avoid synthetic decel-based toggling.
+    # Base brake-lamp state from vehicle lamp signal + driver braking.
     ret.brakeLights = (cp.vl["TCS"]["BrakeLight"] == 1) or ret.brakePressed
 
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
@@ -574,6 +573,7 @@ class CarState(CarStateBase):
       self.ACCMode = cp_cam.vl["SCC_CONTROL"]["ACCMode"]
       self.LFA_ICON = cp_cam.vl["LFAHDA_CLUSTER"]["HDA_LFA_SymSta"]
       
+    cp_cruise_info = cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else cp
     if self.CP.openpilotLongitudinalControl:
       # These are not used for engage/disengage since openpilot keeps track of state using the buttons
       ret.cruiseState.enabled = cp.vl["TCS"]["ACC_REQ"] == 1
@@ -581,7 +581,6 @@ class CarState(CarStateBase):
       if self.MainMode_ACC or self.main_enabled:
         self.main_enabled = True
     else:
-      cp_cruise_info = cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else cp
       ret.cruiseState.enabled = cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] in (1, 2)
       if cp_cruise_info.vl["SCC_CONTROL"]["MainMode_ACC"] == 1: # carrot
         ret.cruiseState.available = self.main_enabled = True
@@ -589,6 +588,11 @@ class CarState(CarStateBase):
       ret.cruiseState.standstill = cp_cruise_info.vl["SCC_CONTROL"]["InfoDisplay"] >= 4
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
       ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)
+
+    # Top-bar brake indicator: include active longitudinal braking request from SCC.
+    # This intentionally does not rely only on brake pedal input.
+    scc_braking = ret.cruiseState.enabled and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.05)
+    ret.brakeLights = ret.brakeLights or scc_braking
 
     speed_limit_cam = False
     corner = False

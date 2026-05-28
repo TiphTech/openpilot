@@ -202,6 +202,9 @@ class VCruiseCarrot:
     self.road_limit_kph = 30
     self.nRoadLimitSpeed_last = 30
     self._last_auto_applied_road_limit = 0
+    self._last_auto_apply_frame = -10000
+    self._auto_road_apply_cooldown_frames = int(8.0 / 0.01)
+    self._auto_road_manual_override_until_frame = 0
 
     self.carrot_cmd_index_last = 0
     self.carrot_cmd_index = 0
@@ -487,6 +490,9 @@ class VCruiseCarrot:
 
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._paddle_decel_active = False
+      if self.autoRoadSpeedAdjust < 0:
+        # Allow manual +/- override without immediate re-apply from the same speed-limit source.
+        self._auto_road_manual_override_until_frame = self.frame + int(20.0 / 0.01)
       if self.autoCruiseControl_cancel_timer > 0:
         self._add_log(f"AutoCruiseControl cancel timer RESET {button_type}")
         self.autoCruiseControl_cancel_timer = 0
@@ -660,13 +666,20 @@ class VCruiseCarrot:
     # Auto road speed adjust must work even when AutoSpeedUptoRoadSpeedLimit is 0
     # (user wants road-sign updates without lead-car-based speed-up behavior).
     if self.autoRoadSpeedAdjust < 0:
-      if self.nRoadLimitSpeed > 0 and self.nRoadLimitSpeed != self._last_auto_applied_road_limit:
+      road_limit_kph = int(round(self.nRoadLimitSpeed))
+      road_limit_changed = abs(road_limit_kph - self._last_auto_applied_road_limit) >= 3
+      first_apply = self._last_auto_applied_road_limit <= 0
+      cooldown_ok = (self.frame - self._last_auto_apply_frame) >= self._auto_road_apply_cooldown_frames
+      manual_override = self.frame < self._auto_road_manual_override_until_frame
+
+      if road_limit_kph > 0 and (first_apply or road_limit_changed) and cooldown_ok and not manual_override:
         if self.autoRoadSpeedLimitOffset < 0:
-          v_cruise_kph = self.nRoadLimitSpeed * self.autoNaviSpeedSafetyFactor
+          v_cruise_kph = road_limit_kph * self.autoNaviSpeedSafetyFactor
         else:
-          v_cruise_kph = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
-        self._last_auto_applied_road_limit = self.nRoadLimitSpeed
-      self.road_limit_kph = self.nRoadLimitSpeed
+          v_cruise_kph = road_limit_kph + self.autoRoadSpeedLimitOffset
+        self._last_auto_applied_road_limit = road_limit_kph
+        self._last_auto_apply_frame = self.frame
+      self.road_limit_kph = road_limit_kph
       self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
       return v_cruise_kph
     else:
