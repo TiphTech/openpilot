@@ -375,9 +375,9 @@ void HomeWindow::updateState(const UIState &s) {
               for (const QString& key : group_items.keys()) {
                 QJsonObject info = group_items[key].toObject();
                 int recommended = info["recommended"].toInt(0);
-                if (recommended > 0) {
-                  p.put(key.toStdString(), std::to_string(recommended));
-                }
+                // Accept negative and zero values as valid recommendations
+                // (e.g. PathOffset can legitimately be negative).
+                p.put(key.toStdString(), std::to_string(recommended));
               }
             }
           }
