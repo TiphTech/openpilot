@@ -422,7 +422,9 @@ class CarrotPlanner:
       atc_active = self.activeCarrot > 1 and 0 < self.xDistToTurn < 100
       self.atcType = carrot_man.atcType
 
-      v_cruise_kph = min(v_cruise_kph, carrot_man.desiredSpeed)
+      # Disable automatic cruise set-speed override for now.
+      # Keep carrotMan state updates/UI indicators, but do not alter user cruise setpoint.
+      # v_cruise_kph = min(v_cruise_kph, carrot_man.desiredSpeed)
 
     return v_cruise_kph, atc_active
 

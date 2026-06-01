@@ -2772,7 +2772,7 @@ public:
         auto peripheralState = sm["peripheralState"].getPeripheralState();
         voltage = peripheralState.getVoltage() / 1000.0;
 
-        const bool thermal_critical = thermalStatus >= cereal::DeviceState::ThermalStatus::RED;
+        const bool thermal_critical = thermalStatus >= cereal::DeviceState::ThermalStatus::YELLOW;
         const bool memory_critical = memoryUsage >= 90;
         const bool disk_critical = freeSpace <= 10.0f;
         if ((thermal_critical || memory_critical || disk_critical) && params.getInt("ShowDeviceState") == 0) {
