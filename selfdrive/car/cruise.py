@@ -172,6 +172,7 @@ class VCruiseCarrot:
     self._cruise_button_mode = 2
     self._cancel_button_mode = 0
     self._lfa_button_mode = 0
+    self._hyundai_camera_scc = 0
 
     self._gas_pressed_count = 0
     self._gas_pressed_count_last = 0
@@ -268,6 +269,7 @@ class VCruiseCarrot:
       self._cruise_button_mode = self.params.get_int("CruiseButtonMode")
       self._cancel_button_mode = self.params.get_int("CancelButtonMode")
       self._lfa_button_mode = self.params.get_int("LfaButtonMode")
+      self._hyundai_camera_scc = self.params.get_int("HyundaiCameraSCC")
       self.autoRoadSpeedLimitOffset = self.params.get_int("AutoRoadSpeedLimitOffset")
       self.autoNaviSpeedSafetyFactor = self.params.get_float("AutoNaviSpeedSafetyFactor") * 0.01
       self.cruiseOnDist = self.params.get_float("CruiseOnDist") * 0.01
@@ -406,7 +408,7 @@ class VCruiseCarrot:
       if b.pressed and self.button_cnt == 0 and bt in [
         ButtonType.accelCruise, ButtonType.decelCruise,
         ButtonType.gapAdjustCruise, ButtonType.cancel,
-        ButtonType.lfaButton
+        ButtonType.lfaButton, ButtonType.mainCruise
       ]:
         self.button_cnt = 1
         self.button_prev = bt
@@ -573,6 +575,13 @@ class VCruiseCarrot:
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
         self._cruise_cancel_state = True
         #self._v_cruise_kph_at_brake = 0
+      elif button_type == ButtonType.mainCruise:
+        # Short press on SCC main button: sync cruise set speed to current road limit sign.
+        if self._hyundai_camera_scc == 2 and self.nRoadLimitSpeed > 0:
+          target_kph = float(np.clip(self.nRoadLimitSpeed, self._cruise_speed_min, self._cruise_speed_max))
+          v_cruise_kph = target_kph
+          self._store_resume_cruise_speed(v_cruise_kph)
+          self._add_log(f"Cruise speed set to road limit {v_cruise_kph:.0f}")
     else:
       if button_type == ButtonType.accelCruise:
         v_cruise_kph = button_kph
@@ -652,55 +661,10 @@ class VCruiseCarrot:
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
 
   def _auto_speed_up(self, v_cruise_kph):
-    #if self._pause_auto_speed_up:
-    #  return v_cruise_kph
-    if not self._pause_auto_speed_up and self.applyModelSpeed != 0.0:
-      model_kph = self.model_v_kph * abs(self.applyModelSpeed)
-      apply_speed = min(model_kph, self.nRoadLimitSpeed * 1.1)
-
-      if self.applyModelSpeed < 0.0:
-        v_cruise_kph = min(model_kph, apply_speed)
-      elif v_cruise_kph < apply_speed:
-        v_cruise_kph = apply_speed
-
-    # Auto road speed adjust must work even when AutoSpeedUptoRoadSpeedLimit is 0
-    # (user wants road-sign updates without lead-car-based speed-up behavior).
-    if self.autoRoadSpeedAdjust < 0:
-      road_limit_kph = int(round(self.nRoadLimitSpeed))
-      road_limit_changed = abs(road_limit_kph - self._last_auto_applied_road_limit) >= 3
-      first_apply = self._last_auto_applied_road_limit <= 0
-      cooldown_ok = (self.frame - self._last_auto_apply_frame) >= self._auto_road_apply_cooldown_frames
-      manual_override = self.frame < self._auto_road_manual_override_until_frame
-
-      if road_limit_kph > 0 and (first_apply or road_limit_changed) and cooldown_ok and not manual_override:
-        if self.autoRoadSpeedLimitOffset < 0:
-          v_cruise_kph = road_limit_kph * self.autoNaviSpeedSafetyFactor
-        else:
-          v_cruise_kph = road_limit_kph + self.autoRoadSpeedLimitOffset
-        self._last_auto_applied_road_limit = road_limit_kph
-        self._last_auto_apply_frame = self.frame
-      self.road_limit_kph = road_limit_kph
-      self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
-      return v_cruise_kph
-    else:
-      # Re-arm one-shot auto-apply when the feature is disabled/re-enabled.
-      self._last_auto_applied_road_limit = 0
-
-    road_limit_kph = self.nRoadLimitSpeed * self.autoSpeedUptoRoadSpeedLimit
-    if road_limit_kph < 1.0:
-      return v_cruise_kph
-
-    if self.autoRoadSpeedLimitOffset > 0:
-      self._v_cruise_kph_at_brake = self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset
-
-    if not self._pause_auto_speed_up and self.v_lead_kph + 5 > v_cruise_kph and v_cruise_kph < road_limit_kph and self.d_rel < 60:
-      v_cruise_kph = min(v_cruise_kph + 5, road_limit_kph)
-    elif self.nRoadLimitSpeed < self.nRoadLimitSpeed_last and self.autoRoadSpeedAdjust > 0:
-      new_road_limit_kph = self.nRoadLimitSpeed * self.autoRoadSpeedAdjust + v_cruise_kph * (1 - self.autoRoadSpeedAdjust)
-      self._add_log(f"AutoSpeed change {v_cruise_kph} -> {new_road_limit_kph:.1f}")
-      v_cruise_kph = min(v_cruise_kph, new_road_limit_kph)
-    self.road_limit_kph = road_limit_kph
+    # Keep the UI toggle/icon only, but disable all automatic cruise set-speed updates.
+    self.road_limit_kph = self.nRoadLimitSpeed
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
+    self._last_auto_applied_road_limit = 0
     return v_cruise_kph
 
   def _cruise_control(self, enable, cancel_timer, reason):
