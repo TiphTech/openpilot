@@ -2516,7 +2516,11 @@ public:
             bool camera_type = xSignType >= 0 && xSignType != 22;
             bool camera_limit = xSpdLimit > 0 && camera_type;
             bool stock_camera_limit = carState.getSpeedLimit() > 0 && carState.getSpeedLimitDistance() > 0;
-            bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source || active_carrot == 3 || active_carrot == 4;
+            // Keep radar icon blinking while camera/nav speed control is actually applied.
+            // Some map sources clear apply_source early, so also detect active apply by desired speed < cruise speed.
+            bool nav_speed_applied = (v_cruise > 0.1f) && (apply_speed > 0.1f) && ((v_cruise - apply_speed) > 0.5f);
+            bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source ||
+                                      nav_speed_applied || active_carrot == 3 || active_carrot == 4;
             if (speed_camera_ahead) {
               speed_camera_icon_hold_timer = 120;  // keep visible for ~2.4s
             } else if (speed_camera_icon_hold_timer > 0) {
