@@ -2318,6 +2318,7 @@ public:
     int   memoryUsage = 0;
     float freeSpace = 0.0f;
     float voltage = 0.0f;
+    bool deviceStateCritical = false;
     void drawAutoRoadSpeedAdjustButton(const UIState* s, int sign_x, int sign_y, int outer_r) {
         const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") < 0;
         const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
@@ -2332,7 +2333,9 @@ public:
     }
 
     void drawHud(UIState* s) {
+        deviceStateCritical = makeDeviceInfo(s);
         int show_device_state = params.getInt("ShowDeviceState");
+        if (deviceStateCritical) show_device_state = 1;
         blink_timer = (blink_timer + 1) % 16;
         disp_timer = (disp_timer + 1) % 64; 
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
@@ -2516,11 +2519,13 @@ public:
             bool camera_type = xSignType >= 0 && xSignType != 22;
             bool camera_limit = xSpdLimit > 0 && camera_type;
             bool stock_camera_limit = carState.getSpeedLimit() > 0 && carState.getSpeedLimitDistance() > 0;
+            bool camera_zone_active = (xSpdDist > 0 && xSpdLimit > 0 && camera_type) ||
+                                      active_carrot == 3 || active_carrot == 4 || active_carrot == 6;
             // Keep radar icon blinking while camera/nav speed control is actually applied.
             // Some map sources clear apply_source early, so also detect active apply by desired speed < cruise speed.
             bool nav_speed_applied = (v_cruise > 0.1f) && (apply_speed > 0.1f) && ((v_cruise - apply_speed) > 0.5f);
             bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source ||
-                                      nav_speed_applied || active_carrot == 3 || active_carrot == 4;
+                                      nav_speed_applied || camera_zone_active;
             if (speed_camera_ahead) {
               speed_camera_icon_hold_timer = 120;  // keep visible for ~2.4s
             } else if (speed_camera_icon_hold_timer > 0) {
@@ -2748,22 +2753,27 @@ public:
       ui_draw_text(s, bx - dw, by + 70, get_tpms_text(rl), 40, get_tpms_color(rl), BOLD);
       ui_draw_text(s, bx + dw, by + 70, get_tpms_text(rr), 40, get_tpms_color(rr), BOLD);
     }
-    void makeDeviceInfo(const UIState* s) {
+    bool makeDeviceInfo(const UIState* s) {
         SubMaster& sm = *(s->sm);
         auto deviceState = sm["deviceState"].getDeviceState();
         const auto thermalStatus = deviceState.getThermalStatus();
+        cpuTemp = 0.0f;
+        cpuUsage = 0.0f;
+        memoryUsage = 0;
+        freeSpace = 0.0f;
+        voltage = 0.0f;
         freeSpace = deviceState.getFreeSpacePercent();
         memoryUsage = deviceState.getMemoryUsagePercent();
         const auto cpuTempC = deviceState.getCpuTempC();
         const auto cpuUsagePercent = deviceState.getCpuUsagePercent();
-        int   size = sizeof(cpuTempC) / sizeof(cpuTempC[0]);
+        int size = cpuTempC.size();
         if (size > 0) {
             for (int i = 0; i < size; i++) {
                 cpuTemp += cpuTempC[i];
             }
             cpuTemp /= static_cast<float>(size);
         }
-        size = sizeof(cpuUsagePercent) / sizeof(cpuUsagePercent[0]);
+        size = cpuUsagePercent.size();
         if (size > 0) {
             int cpu_size = 0;
             for (cpu_size = 0; cpu_size < size; cpu_size++) {
@@ -2779,9 +2789,11 @@ public:
         const bool thermal_critical = thermalStatus >= cereal::DeviceState::ThermalStatus::YELLOW;
         const bool memory_critical = memoryUsage >= 90;
         const bool disk_critical = freeSpace <= 10.0f;
-        if ((thermal_critical || memory_critical || disk_critical) && params.getInt("ShowDeviceState") == 0) {
+        deviceStateCritical = thermal_critical || memory_critical || disk_critical;
+        if (deviceStateCritical && params.getInt("ShowDeviceState") == 0) {
             params.putIntNonBlocking("ShowDeviceState", 1);
         }
+        return deviceStateCritical;
     }
     void drawDeviceInfo(const UIState* s) {
 #ifdef WSL2

@@ -162,6 +162,7 @@ class VCruiseCarrot:
     self.button_cnt = 0
     self.button_prev = ButtonType.unknown
     self.button_long_time = 40
+    self._button_long_press_consumed = False
 
     self.is_metric = True
 
@@ -413,9 +414,12 @@ class VCruiseCarrot:
         self.button_cnt = 1
         self.button_prev = bt
         self.button_long_time = self._cruise_button_long_delay if bt in [ButtonType.accelCruise, ButtonType.decelCruise] else self._cruise_button_long_delay + 30
+        self._button_long_press_consumed = False
 
       elif not b.pressed and self.button_cnt > 0 and bt == self.button_prev:
-        if bt == ButtonType.cancel:
+        if self._button_long_press_consumed:
+          self._button_long_press_consumed = False
+        elif bt == ButtonType.cancel:
           button_type = bt
         elif not self.long_pressed:          
           if bt == ButtonType.accelCruise:
@@ -447,6 +451,8 @@ class VCruiseCarrot:
       else: #if bt in [ButtonType.gapAdjustCruise, ButtonType.lfaButton]:
         if self.button_cnt < self.button_long_time + 2:
           button_type = bt
+          if bt == ButtonType.cancel:
+            self._button_long_press_consumed = True
         #self.button_cnt %= self.button_long_time
 
     return button_kph, button_type, self.long_pressed
@@ -575,13 +581,6 @@ class VCruiseCarrot:
           self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
         self._cruise_cancel_state = True
         #self._v_cruise_kph_at_brake = 0
-      elif button_type == ButtonType.mainCruise:
-        # Short press on SCC main button: sync cruise set speed to current road limit sign.
-        if self._hyundai_camera_scc == 2 and self.nRoadLimitSpeed > 0:
-          target_kph = float(np.clip(self.nRoadLimitSpeed, self._cruise_speed_min, self._cruise_speed_max))
-          v_cruise_kph = target_kph
-          self._store_resume_cruise_speed(v_cruise_kph)
-          self._add_log(f"Cruise speed set to road limit {v_cruise_kph:.0f}")
     else:
       if button_type == ButtonType.accelCruise:
         v_cruise_kph = button_kph
@@ -597,12 +596,18 @@ class VCruiseCarrot:
         self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
 
       elif button_type == ButtonType.cancel:
-        self._cruise_cancel_state = True
-        self._store_resume_cruise_speed(v_cruise_kph)
-        self._lat_enabled = False
-        self._paddle_decel_active = False
-        #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
-        self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+        if self._hyundai_camera_scc == 2 and self.nRoadLimitSpeed > 0:
+          target_kph = float(np.clip(self.nRoadLimitSpeed, self._cruise_speed_min, self._cruise_speed_max))
+          v_cruise_kph = target_kph
+          self._store_resume_cruise_speed(v_cruise_kph)
+          self._add_log(f"Cruise speed set to road limit {v_cruise_kph:.0f}")
+        else:
+          self._cruise_cancel_state = True
+          self._store_resume_cruise_speed(v_cruise_kph)
+          self._lat_enabled = False
+          self._paddle_decel_active = False
+          #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
+          self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
