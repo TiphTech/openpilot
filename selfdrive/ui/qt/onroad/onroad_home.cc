@@ -222,8 +222,8 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   // 40,150, 200, 150
   Params	params;
   if (x > 55 && x < 245 && ey > 245 && ey < 430) {  // auto road speed adjust
-    const bool auto_road_speed_adjust = params.getInt("AutoRoadSpeedAdjust") < 0;
-    params.putIntNonBlocking("AutoRoadSpeedAdjust", auto_road_speed_adjust ? 0 : -1);
+    const bool auto_road_speed_adjust = params.getInt("AutoRoadSpeedAdjust") > 0;
+    params.putIntNonBlocking("AutoRoadSpeedAdjust", auto_road_speed_adjust ? 0 : 1);
   }
   else if (x > 40 && x < 320 && y > 150 && y < 360) {   // current speed: real/cluster speed display
     bool use_cluster_speed = params.getBool("UseClusterSpeed");

@@ -589,9 +589,8 @@ class CarState(CarStateBase):
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
       ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)
 
-    # Top-bar brake indicator: include active longitudinal braking request from SCC.
-    # This intentionally does not rely only on brake pedal input.
-    scc_braking = ret.cruiseState.enabled and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.05)
+    # Top-bar brake indicator: include only meaningful active SCC braking, not light drag/coast requests.
+    scc_braking = ret.cruiseState.enabled and not ret.gasPressed and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.2)
     ret.brakeLights = ret.brakeLights or scc_braking
 
     speed_limit_cam = False

@@ -2320,7 +2320,7 @@ public:
     float voltage = 0.0f;
     bool deviceStateCritical = false;
     void drawAutoRoadSpeedAdjustButton(const UIState* s, int sign_x, int sign_y, int outer_r) {
-        const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") < 0;
+        const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") > 0;
         const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
         const char *icon_name = auto_adjust_enabled ? "ic_auto_speed_limit_green" : "ic_auto_speed_limit_white";
         const int auto_icon_size = 86;

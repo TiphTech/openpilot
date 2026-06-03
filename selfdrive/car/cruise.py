@@ -207,6 +207,7 @@ class VCruiseCarrot:
     self._last_auto_apply_frame = -10000
     self._auto_road_apply_cooldown_frames = int(8.0 / 0.01)
     self._auto_road_manual_override_until_frame = 0
+    self._pending_pcm_set_speed_kph = 0.0
 
     self.carrot_cmd_index_last = 0
     self.carrot_cmd_index = 0
@@ -226,7 +227,7 @@ class VCruiseCarrot:
 
     self.autoCruiseControl = 0
     self.autoCruiseControl_cancel_timer = 0
-    self.AutoSpeedUptoRoadSpeedLimit = 0.0
+    self.autoSpeedUptoRoadSpeedLimit = 0
 
     self.useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed")
     self.useLaneLineSpeedApply = self.useLaneLineSpeed
@@ -247,6 +248,9 @@ class VCruiseCarrot:
       #self.event = event
       self._log_timer = self._log_timeout
 
+  def _queue_pcm_set_speed(self, target_kph):
+    self._pending_pcm_set_speed_kph = float(np.clip(target_kph, self._cruise_speed_min, self._cruise_speed_max))
+
   def update_params(self, is_metric):
     unit_factor = 1.0 if is_metric else CV.MPH_TO_KPH
     if self.frame % 10 == 0:
@@ -254,8 +258,7 @@ class VCruiseCarrot:
       self.autoGasTokSpeed = self.params.get_int("AutoGasTokSpeed") * unit_factor
       self.autoGasSyncSpeed = self.params.get_int("AutoGasSyncSpeed")
       self.applyModelSpeed = self.params.get_float("ApplyModelSpeed") * 0.01
-      self.autoSpeedUptoRoadSpeedLimit = self.params.get_float("AutoSpeedUptoRoadSpeedLimit") * 0.01
-      self.autoRoadSpeedAdjust = self.params.get_float("AutoRoadSpeedAdjust") * 0.01
+      self.autoRoadSpeedAdjust = self.params.get_int("AutoRoadSpeedAdjust")
 
       useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed") * unit_factor
       if self.useLaneLineSpeed != useLaneLineSpeed:
@@ -348,8 +351,16 @@ class VCruiseCarrot:
         self.v_cruise_cluster_kph = self.v_cruise_kph
       else:
         if self.speed_from_pcm == 1:
-          self.v_cruise_kph = CS.cruiseState.speed * CV.MS_TO_KPH
-          self.v_cruise_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
+          actual_kph = CS.cruiseState.speed * CV.MS_TO_KPH
+          actual_cluster_kph = CS.cruiseState.speedCluster * CV.MS_TO_KPH
+          if self._pending_pcm_set_speed_kph > 0:
+            if abs(actual_cluster_kph - self._pending_pcm_set_speed_kph) < 0.6:
+              self._pending_pcm_set_speed_kph = 0.0
+            else:
+              actual_kph = self._pending_pcm_set_speed_kph
+              actual_cluster_kph = self._pending_pcm_set_speed_kph
+          self.v_cruise_kph = actual_kph
+          self.v_cruise_cluster_kph = actual_cluster_kph
         else:
           self.v_cruise_kph = np.clip(v_cruise_kph, 30, self._cruise_speed_max)
           self.v_cruise_cluster_kph = self.v_cruise_kph
@@ -457,7 +468,21 @@ class VCruiseCarrot:
 
     return button_kph, button_type, self.long_pressed
 
-  def _carrot_command(self, v_cruise_kph, button_type, long_pressed):
+  def _road_limit_cluster_kph(self, CS):
+    if self.nRoadLimitSpeed < 30:
+      return float(np.clip(self.v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max))
+
+    if self.autoRoadSpeedLimitOffset < 0:
+      target_kph = float(self.nRoadLimitSpeed) * self.autoNaviSpeedSafetyFactor
+    else:
+      target_kph = float(self.nRoadLimitSpeed + self.autoRoadSpeedLimitOffset)
+
+    v_clu_ratio = float(getattr(CS, "vCluRatio", 1.0) or 1.0)
+    if 0.5 < v_clu_ratio < 1.5:
+      target_kph = target_kph / v_clu_ratio
+    return float(np.clip(target_kph, self._cruise_speed_min, self._cruise_speed_max))
+
+  def _carrot_command(self, CS, v_cruise_kph, button_type, long_pressed):
     if self.carrot_cmd_index_last != self.carrot_cmd_index:
       self.carrot_cmd_index_last = self.carrot_cmd_index
       print(f"Carrot command(cruise.py): {self.carrot_cmd} {self.carrot_arg}")
@@ -477,7 +502,7 @@ class VCruiseCarrot:
 
       elif self.carrot_cmd == "SPEED":
         if self.carrot_arg == "UP":
-          v_cruise_kph = self._auto_speed_up(v_cruise_kph)
+          v_cruise_kph = self._auto_speed_up(CS, v_cruise_kph, force=True)
           self._add_log("Cruise speed up (carrot command)")
         elif self.carrot_arg == "DOWN":
           if v_cruise_kph > 20:
@@ -494,11 +519,11 @@ class VCruiseCarrot:
   def _update_cruise_buttons(self, CS, CC, v_cruise_kph):
     button_kph, button_type, long_pressed = self._prepare_buttons(CS, v_cruise_kph)
 
-    v_cruise_kph, button_type, long_pressed = self._carrot_command(v_cruise_kph, button_type, long_pressed)
+    v_cruise_kph, button_type, long_pressed = self._carrot_command(CS, v_cruise_kph, button_type, long_pressed)
 
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._paddle_decel_active = False
-      if self.autoRoadSpeedAdjust < 0:
+      if self.autoRoadSpeedAdjust > 0:
         # Allow manual +/- override without immediate re-apply from the same speed-limit source.
         self._auto_road_manual_override_until_frame = self.frame + int(20.0 / 0.01)
       if self.autoCruiseControl_cancel_timer > 0:
@@ -590,24 +615,25 @@ class VCruiseCarrot:
         v_cruise_kph = button_kph
         self._v_cruise_kph_at_brake = 0
       elif button_type == ButtonType.gapAdjustCruise:
-        self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
+        if self._hyundai_camera_scc == 2 and self.nRoadLimitSpeed > 0:
+          target_kph = self._road_limit_cluster_kph(CS)
+          v_cruise_kph = target_kph
+          self._queue_pcm_set_speed(v_cruise_kph)
+          self._store_resume_cruise_speed(v_cruise_kph)
+          self._add_log(f"Cruise speed set to road limit {self.nRoadLimitSpeed:.0f}->{v_cruise_kph:.0f}")
+        else:
+          self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
       elif button_type == ButtonType.lfaButton:
         useLaneLineSpeed = max(1, self.useLaneLineSpeed)
         self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
 
       elif button_type == ButtonType.cancel:
-        if self._hyundai_camera_scc == 2 and self.nRoadLimitSpeed > 0:
-          target_kph = float(np.clip(self.nRoadLimitSpeed, self._cruise_speed_min, self._cruise_speed_max))
-          v_cruise_kph = target_kph
-          self._store_resume_cruise_speed(v_cruise_kph)
-          self._add_log(f"Cruise speed set to road limit {v_cruise_kph:.0f}")
-        else:
-          self._cruise_cancel_state = True
-          self._store_resume_cruise_speed(v_cruise_kph)
-          self._lat_enabled = False
-          self._paddle_decel_active = False
-          #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
-          self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+        self._cruise_cancel_state = True
+        self._store_resume_cruise_speed(v_cruise_kph)
+        self._lat_enabled = False
+        self._paddle_decel_active = False
+        #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
+        self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
@@ -665,11 +691,33 @@ class VCruiseCarrot:
       resume_speed = max(self.v_ego_kph_set, self._cruise_speed_min)
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
 
-  def _auto_speed_up(self, v_cruise_kph):
-    # Keep the UI toggle/icon only, but disable all automatic cruise set-speed updates.
+  def _auto_speed_up(self, CS, v_cruise_kph, force=False):
     self.road_limit_kph = self.nRoadLimitSpeed
+
+    auto_enabled = self.autoRoadSpeedAdjust > 0
+    road_limit_changed = self.nRoadLimitSpeed >= 30 and self.nRoadLimitSpeed != self.nRoadLimitSpeed_last
+    can_auto_apply = (
+      auto_enabled and
+      self._hyundai_camera_scc == 2 and
+      CS.cruiseState.enabled and
+      not self._pause_auto_speed_up and
+      self.frame >= self._auto_road_manual_override_until_frame
+    )
+
+    if (force and self.nRoadLimitSpeed >= 30 and self._hyundai_camera_scc == 2) or (can_auto_apply and road_limit_changed):
+      target_kph = self._road_limit_cluster_kph(CS)
+      if abs(target_kph - v_cruise_kph) >= 0.5:
+        v_cruise_kph = target_kph
+        self._queue_pcm_set_speed(v_cruise_kph)
+        self._store_resume_cruise_speed(v_cruise_kph)
+        self._last_auto_applied_road_limit = self.nRoadLimitSpeed
+        self._last_auto_apply_frame = self.frame
+        if force:
+          self._add_log(f"Cruise speed set to road limit {self.nRoadLimitSpeed:.0f}->{v_cruise_kph:.0f}")
+        else:
+          self._add_log(f"Auto road limit {self.nRoadLimitSpeed_last:.0f}->{self.nRoadLimitSpeed:.0f} => {v_cruise_kph:.0f}")
+
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
-    self._last_auto_applied_road_limit = 0
     return v_cruise_kph
 
   def _cruise_control(self, enable, cancel_timer, reason):
@@ -810,7 +858,7 @@ class VCruiseCarrot:
     elif self._brake_pressed_count > 0:
       self._pause_auto_speed_up = True
 
-    return self._auto_speed_up(v_cruise_kph)
+    return self._auto_speed_up(CS, v_cruise_kph)
 
   def _prepare_brake_gas(self, CS, CC):
     if CS.gasPressed:

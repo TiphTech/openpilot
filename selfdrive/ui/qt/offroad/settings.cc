@@ -856,7 +856,6 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   cruiseToggles->addItem(new CValueControl("CruiseSpeedUnitBasic", tr("Button: Cruise Speed Unit(Basic)"), "", 1, 20, 1));
   cruiseToggles->addItem(new CValueControl("CruiseSpeedUnit", tr("Button: Cruise Speed Unit(Extra)"), "", 1, 20, 1));
   cruiseToggles->addItem(new CValueControl("CruiseEcoControl", tr("CRUISE: Eco control(4km/h)"), tr("Temporarily increasing the set speed to improve fuel efficiency."), 0, 10, 1));
-  cruiseToggles->addItem(new CValueControl("AutoSpeedUptoRoadSpeedLimit", tr("CRUISE: Auto speed up (0%)"), tr("Auto speed up based on the lead car up to RoadSpeedLimit."), 0, 200, 10));
   cruiseToggles->addItem(new CValueControl("TFollowGap1", tr("GAP1: Apply TFollow (110)x0.01s"), "", 70, 300, 5));
   cruiseToggles->addItem(new CValueControl("TFollowGap2", tr("GAP2: Apply TFollow (120)x0.01s"), "", 70, 300, 5));
   cruiseToggles->addItem(new CValueControl("TFollowGap3", tr("GAP3: Apply TFollow (160)x0.01s"), "", 70, 300, 5));
@@ -1048,7 +1047,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   speedToggles->addItem(new CValueControl("AutoCurveSpeedFactor", tr("CURVE: Auto Control ratio(100%)"), "", 50, 300, 1));
   speedToggles->addItem(new CValueControl("AutoCurveSpeedAggressiveness", tr("CURVE: Aggressiveness (100%)"), "", 50, 300, 1));
   speedToggles->addItem(new CValueControl("AutoRoadSpeedLimitOffset", tr("RoadSpeedLimitOffset(-1)"), tr("-1:NotUsed,RoadLimitSpeed+Offset"), -1, 100, 1));
-  speedToggles->addItem(new CValueControl("AutoRoadSpeedAdjust", tr("Auto Roadlimit Speed adjust (50%)"), "", -1, 100, 5));
+  speedToggles->addItem(new ParamControl("AutoRoadSpeedAdjust", tr("CRUISE: Auto update set speed from road limit"), tr("When enabled, tapping the onroad cruise icon turns automatic set-speed update on. Cruise set speed is updated automatically when the detected road speed limit changes, using cluster-compensated speed plus your configured road limit offset."), "", this));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlEnd", tr("SpeedCamDecelEnd(6s)"), tr("Sets the deceleration completion point. A larger value completes deceleration farther away from the camera."), 3, 20, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", tr("NaviSpeedControlMode(2)"), tr("0:No slowdown, 1: speed camera, 2: + accident prevention bump, 3: + mobile camera"), 0, 3, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedDecelRate", tr("SpeedCamDecelRatex0.01m/s^2(80)"), tr("Lower number, slows down from a greater distance"), 10, 200, 10));
