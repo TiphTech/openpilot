@@ -104,16 +104,7 @@ void OnroadWindow::updateState(const UIState &s) {
   const auto car_state = sm["carState"].getCarState();
   const bool cruise_engaged = car_state.getCruiseState().getEnabled();
   const bool lat_active = car_control.getLatActive();
-  const bool brake_lights_raw = car_state.getBrakeLights();
-
-  if (brake_lights_raw) {
-    brake_lights_on_counter = (brake_lights_on_counter < 10) ? (brake_lights_on_counter + 1) : 10;
-    if (brake_lights_on_counter >= 3) brake_lights_hold_counter = 12;
-  } else {
-    brake_lights_on_counter = 0;
-    brake_lights_hold_counter = (brake_lights_hold_counter > 0) ? (brake_lights_hold_counter - 1) : 0;
-  }
-  const bool brake_lights = brake_lights_hold_counter > 0;
+  const bool brake_lights = car_state.getBrakeLights();
 
   const QColor inactive_color = QColor(0x00, 0x00, 0x00, 0xf1);
   const QColor cruise_color = QColor(0x14, 0xb8, 0x50, 0xf1);

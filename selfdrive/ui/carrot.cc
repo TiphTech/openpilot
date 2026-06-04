@@ -2331,6 +2331,25 @@ public:
         ui_draw_text(s, sign_x, text_y, "AUTO", 34, color, BOLD, 2.0f, 4.0f);
         ui_draw_image(s, { sign_x - auto_icon_size / 2, icon_y, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
     }
+    void drawRealSpeedBox(const UIState* s, int speed_limit_display) {
+        const int actual_speed_display = (int)std::lround((s->scene.is_metric ? v_ego * MS_TO_KPH : v_ego * MS_TO_MPH));
+        const bool over_limit = speed_limit_display >= 30 && actual_speed_display > speed_limit_display;
+        const NVGcolor accent = over_limit ? COLOR_RED : COLOR_WHITE;
+        const NVGcolor bg = COLOR_BLACK_ALPHA(125);
+        NVGcolor stroke = accent;
+        const int box_w = 170;
+        const int box_h = 110;
+        const int box_x = s->fb_w - box_w - 36;
+        const int box_y = 44;
+
+        ui_fill_rect(s->vg, { box_x, box_y, box_w, box_h }, bg, 24, 3, &stroke);
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, box_x + box_w / 2, box_y + 34, "REAL", 24, accent, BOLD, 2.0f, 3.0f);
+
+        char speed_str[32];
+        snprintf(speed_str, sizeof(speed_str), "%d", actual_speed_display);
+        ui_draw_text(s, box_x + box_w / 2, box_y + 92, speed_str, 54, accent, BOLD, 2.0f, 4.0f);
+    }
 
     void drawHud(UIState* s) {
         deviceStateCritical = makeDeviceInfo(s);
@@ -2565,6 +2584,7 @@ public:
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
             }
             drawAutoRoadSpeedAdjustButton(s, sign_x, sign_y, outer_r);
+            drawRealSpeedBox(s, disp_speed);
         }
 
         if (show_device_state) {
@@ -2679,79 +2699,6 @@ public:
             ui_draw_image(s, { x, y, 240, 54 }, "ic_radartracks", 1.0f);
             x += (120 + 135);
         }
-    }
-    NVGcolor get_tpms_color(float tpms) {
-        if (tpms < 5 || tpms > 60) // N/A
-            return nvgRGBA(255, 255, 255, 220);
-        if (tpms < 31)
-            return nvgRGBA(255, 90, 90, 220);
-        return nvgRGBA(255, 255, 255, 220);
-    }
-
-    const char* get_tpms_text(float tpms) {
-        if (tpms < 5 || tpms > 60) return "  -";
-        static char str[32];
-        snprintf(str, sizeof(str), "%.0f", round(tpms));
-        return str;
-    }
-    void drawTpms(const UIState* s) {
-        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        SubMaster& sm = *(s->sm);
-        auto car_state = sm["carState"].getCarState();
-
-        int bx = (192 - 24) / 2 + UI_BORDER_SIZE + 10;
-        int by = s->fb_h - 280 / 2 + 10;
-        auto tpms = car_state.getTpms();
-        float fl = tpms.getFl();
-        float fr = tpms.getFr();
-        float rl = tpms.getRl();
-        float rr = tpms.getRr();
-        ui_draw_text(s, bx - 90, by - 55, get_tpms_text(fl), 38, get_tpms_color(fl), BOLD);
-        ui_draw_text(s, bx + 90, by - 55, get_tpms_text(fr), 38, get_tpms_color(fr), BOLD);
-        ui_draw_text(s, bx - 90, by + 80, get_tpms_text(rl), 38, get_tpms_color(rl), BOLD);
-        ui_draw_text(s, bx + 90, by + 80, get_tpms_text(rr), 38, get_tpms_color(rr), BOLD);
-    }
-    void drawTpms2(const UIState* s) {
-        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        SubMaster& sm = *(s->sm);
-        auto car_state = sm["carState"].getCarState();
-
-        int bx = s->fb_w - 125;
-        int by = 130;
-        auto tpms = car_state.getTpms();
-        float fl = tpms.getFl();
-        float fr = tpms.getFr();
-        float rl = tpms.getRl();
-        float rr = tpms.getRr();
-#ifdef __UI_TEST
-        fl = fr = rl = rr = 29;
-#endif
-        int dw = 80;
-        ui_draw_text(s, bx - dw, by - 55, get_tpms_text(fl), 40, get_tpms_color(fl), BOLD);
-        ui_draw_text(s, bx + dw, by - 55, get_tpms_text(fr), 40, get_tpms_color(fr), BOLD);
-        ui_draw_text(s, bx - dw, by + 70, get_tpms_text(rl), 40, get_tpms_color(rl), BOLD);
-        ui_draw_text(s, bx + dw, by + 70, get_tpms_text(rr), 40, get_tpms_color(rr), BOLD);
-    }
-    void drawTpms3(const UIState* s) {
-      nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-      SubMaster& sm = *(s->sm);
-      auto car_state = sm["carState"].getCarState();
-
-      int bx = s->fb_w - 125;
-      int by = s->fb_h - 280 / 2 + 15;
-      auto tpms = car_state.getTpms();
-      float fl = tpms.getFl();
-      float fr = tpms.getFr();
-      float rl = tpms.getRl();
-      float rr = tpms.getRr();
-#ifdef __UI_TEST
-      fl = fr = rl = rr = 29;
-#endif
-      int dw = 80;
-      ui_draw_text(s, bx - dw, by - 55, get_tpms_text(fl), 40, get_tpms_color(fl), BOLD);
-      ui_draw_text(s, bx + dw, by - 55, get_tpms_text(fr), 40, get_tpms_color(fr), BOLD);
-      ui_draw_text(s, bx - dw, by + 70, get_tpms_text(rl), 40, get_tpms_color(rl), BOLD);
-      ui_draw_text(s, bx + dw, by + 70, get_tpms_text(rr), 40, get_tpms_color(rr), BOLD);
     }
     bool makeDeviceInfo(const UIState* s) {
         SubMaster& sm = *(s->sm);
@@ -3171,21 +3118,6 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
   drawCarrot.drawDateTime(s);
   //drawCarrot.drawConnInfo(s);
   drawCarrot.drawDeviceInfo(s);
-  int show_tpms = params.getInt("ShowTpms");
-  switch (show_tpms) {
-  case 0: break;
-  case 1:
-    drawCarrot.drawTpms2(s);
-    break;
-  case 2:
-    drawCarrot.drawTpms3(s);
-    break;
-  case 3:
-    drawCarrot.drawTpms2(s);
-    drawCarrot.drawTpms3(s);
-    break;
-  }
-
   drawTurnInfo.draw(s);
 
   ui_draw_text_a2(s);
@@ -3206,41 +3138,7 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 class BorderDrawer {
 protected:
     float   a_ego_width = 0.0;
-    NVGcolor get_tpms_color(float tpms) {
-        if (tpms < 5 || tpms > 60) // N/A
-            return COLOR_GREEN;
-        if (tpms < 31)
-            return COLOR_RED;
-        return COLOR_GREEN;
-    }
-
-    const char* get_tpms_text(float tpms) {
-        if (tpms < 5 || tpms > 60) return "-";
-        static char str[32];
-        snprintf(str, sizeof(str), "%.0f", round(tpms));
-        return str;
-    }
 public:
-    void drawTpms(UIState* s, int w, int h) {
-        NVGcontext* vg = s->vg_border;
-        nvgTextAlign(vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        SubMaster& sm = *(s->sm);
-        if (!sm.alive("carState")) return;
-        auto car_state = sm["carState"].getCarState();
-
-        auto tpms = car_state.getTpms();
-        float fl = tpms.getFl();
-        float fr = tpms.getFr();
-        float rl = tpms.getRl();
-        float rr = tpms.getRr();
-
-        //fl = fr = rl = rr = 29;
-        //fl = fr = 40;
-        ui_draw_text_vg(vg, 25, 30, get_tpms_text(fl), 30, get_tpms_color(fl), BOLD, 3);
-        ui_draw_text_vg(vg, w - 25, 30, get_tpms_text(fr), 30, get_tpms_color(fr), BOLD, 3);
-        ui_draw_text_vg(vg, 25, h, get_tpms_text(rl), 30, get_tpms_color(rl), BOLD, 3);
-        ui_draw_text_vg(vg, w - 25, h, get_tpms_text(rr), 30, get_tpms_color(rr), BOLD, 3);
-    }
     void draw(UIState *s, int w, int h, NVGcolor bg, NVGcolor bg_long) {
         NVGcontext* vg = s->vg_border;
 
@@ -3249,8 +3147,6 @@ public:
 
         ui_fill_rect(vg, {w - 50, h/2 - 95, 50, 190}, (_right_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
         ui_fill_rect(vg, {0, h/2 - 95, 50, 190}, (_left_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
-
-        //drawTpms(s, w, h);
     }
 };
 NVGcolor QColorToNVGcolor(const QColor& color) {
@@ -3331,7 +3227,6 @@ void ui_nvg_init(UIState *s) {
   {"ic_speed_bg", "../assets/images/speed_bg.png"},
   {"ic_traffic_green", "../assets/images/traffic_green.png"},
   {"ic_traffic_red", "../assets/images/traffic_red.png"},
-  {"ic_tire", "../assets/images/img_tire.png"},
   {"ic_road_speed", "../assets/images/road_speed.png"},
   {"ic_speed_bump", "../assets/images/speed_bump.png"},
   {"ic_nda", "../assets/images/img_nda.png"},

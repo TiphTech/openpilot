@@ -25,8 +25,6 @@ private:
   AnnotatedCameraWidget *nvg;
   QColor bg = bg_colors[STATUS_DISENGAGED];
   QColor bg_long = bg_colors[STATUS_DISENGAGED];
-  int brake_lights_on_counter = 0;
-  int brake_lights_hold_counter = 0;
   QWidget *map = nullptr;
   QHBoxLayout* split;
 

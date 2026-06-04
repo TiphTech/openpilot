@@ -521,8 +521,9 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    # Base brake-lamp state from vehicle lamp signal + driver braking.
-    ret.brakeLights = (cp.vl["TCS"]["BrakeLight"] == 1) or ret.brakePressed
+    # Keep UI brake indication limited to explicit pedal braking here.
+    # Active SCC braking is added below once cruise state is known.
+    ret.brakeLights = ret.brakePressed
 
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
 
@@ -589,8 +590,8 @@ class CarState(CarStateBase):
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
       ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)
 
-    # Top-bar brake indicator: include only meaningful active SCC braking, not light drag/coast requests.
-    scc_braking = ret.cruiseState.enabled and not ret.gasPressed and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.2)
+    # Only show cruise braking when the stock SCC is actually commanding meaningful decel.
+    scc_braking = ret.cruiseState.enabled and not ret.gasPressed and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.3)
     ret.brakeLights = ret.brakeLights or scc_braking
 
     speed_limit_cam = False
