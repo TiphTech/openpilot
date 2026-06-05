@@ -212,7 +212,7 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   static int _click_count = 0;
   // 40,150, 200, 150
   Params	params;
-  if (x > 55 && x < 245 && ey > 245 && ey < 430) {  // auto road speed adjust
+  if (x > width() - 220 && x < width() - 20 && ey > 30 && ey < 180) {  // auto road speed adjust
     const bool auto_road_speed_adjust = params.getInt("AutoRoadSpeedAdjust") > 0;
     params.putIntNonBlocking("AutoRoadSpeedAdjust", auto_road_speed_adjust ? 0 : 1);
   }

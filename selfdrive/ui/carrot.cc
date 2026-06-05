@@ -2319,36 +2319,42 @@ public:
     float freeSpace = 0.0f;
     float voltage = 0.0f;
     bool deviceStateCritical = false;
-    void drawAutoRoadSpeedAdjustButton(const UIState* s, int sign_x, int sign_y, int outer_r) {
+    void drawAutoRoadSpeedAdjustButton(const UIState* s) {
         const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") > 0;
         const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
         const char *icon_name = auto_adjust_enabled ? "ic_auto_speed_limit_green" : "ic_auto_speed_limit_white";
-        const int auto_icon_size = 86;
-        const int text_y = sign_y + outer_r + 48;
-        const int icon_y = text_y + 12;
-
-        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, sign_x, text_y, "AUTO", 34, color, BOLD, 2.0f, 4.0f);
-        ui_draw_image(s, { sign_x - auto_icon_size / 2, icon_y, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
-    }
-    void drawRealSpeedBox(const UIState* s, int speed_limit_display) {
-        const int actual_speed_display = (int)std::lround((s->scene.is_metric ? v_ego * MS_TO_KPH : v_ego * MS_TO_MPH));
-        const bool over_limit = speed_limit_display >= 30 && actual_speed_display > speed_limit_display;
-        const NVGcolor accent = over_limit ? COLOR_RED : COLOR_WHITE;
         const NVGcolor bg = COLOR_BLACK_ALPHA(125);
-        NVGcolor stroke = accent;
+        NVGcolor stroke = color;
         const int box_w = 170;
         const int box_h = 110;
         const int box_x = s->fb_w - box_w - 36;
         const int box_y = 44;
+        const int auto_icon_size = 62;
 
         ui_fill_rect(s->vg, { box_x, box_y, box_w, box_h }, bg, 24, 3, &stroke);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, box_x + box_w / 2, box_y + 34, "REAL", 24, accent, BOLD, 2.0f, 3.0f);
+        ui_draw_text(s, box_x + box_w / 2, box_y + 34, "AUTO", 24, color, BOLD, 2.0f, 3.0f);
+        ui_draw_image(s, { box_x + (box_w - auto_icon_size) / 2, box_y + 42, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
+    }
+    void drawRealSpeedBox(const UIState* s, int speed_limit_display, int sign_x, int sign_y, int outer_r) {
+        const int actual_speed_display = (int)std::lround((s->scene.is_metric ? v_ego_real * MS_TO_KPH : v_ego_real * MS_TO_MPH));
+        const bool over_limit = speed_limit_display >= 30 && actual_speed_display > speed_limit_display;
+        const NVGcolor accent = over_limit ? COLOR_RED : COLOR_WHITE;
+        const NVGcolor bg = COLOR_BLACK_ALPHA(125);
+        const int panel_w = 176;
+        const int panel_h = 304;
+        const int panel_x = sign_x - panel_w / 2;
+        const int panel_y = sign_y - outer_r - 16;
+        const int speed_y = sign_y + outer_r + 24;
+        const int unit_y = panel_y + panel_h - 28;
+
+        ui_fill_rect(s->vg, { panel_x, panel_y, panel_w, panel_h }, bg, panel_w / 2, 0);
 
         char speed_str[32];
         snprintf(speed_str, sizeof(speed_str), "%d", actual_speed_display);
-        ui_draw_text(s, box_x + box_w / 2, box_y + 92, speed_str, 54, accent, BOLD, 2.0f, 4.0f);
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
+        ui_draw_text(s, sign_x, speed_y, speed_str, 64, accent, BOLD, 2.0f, 4.0f);
+        ui_draw_text(s, sign_x, unit_y, s->scene.is_metric ? "km/h" : "mph", 34, COLOR_WHITE_ALPHA(220), BOLD, 2.0f, 3.0f);
     }
 
     void drawHud(UIState* s) {
@@ -2407,7 +2413,7 @@ public:
         char cruise_speed[32];
         int cruise_x = bx + 170;
         int cruise_y = by + 15;
-        if(longActive) sprintf(cruise_speed, "%d", (int)((s->scene.is_metric)?v_cruise: v_cruise * KM_TO_MILE + 0.5));
+        if(longActive) snprintf(cruise_speed, sizeof(cruise_speed), "%d", (int)std::lround((s->scene.is_metric) ? v_cruise : v_cruise * KM_TO_MILE));
 		    else sprintf(cruise_speed, "--");
         if (strcmp(cruise_speed_last, cruise_speed) != 0) {
 			    strcpy(cruise_speed_last, cruise_speed);
@@ -2424,13 +2430,13 @@ public:
         int apply_y = by - 50;
 
         if (apply_source.length()) {
-            sprintf(apply_speed_str, "%d", (int)((s->scene.is_metric)?apply_speed:apply_speed * KM_TO_MILE + 0.5));
+            snprintf(apply_speed_str, sizeof(apply_speed_str), "%d", (int)std::lround((s->scene.is_metric) ? apply_speed : apply_speed * KM_TO_MILE));
             textColor = COLOR_OCHRE;    // apply speed가 작동되면... 색을 바꾸자.
             ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, apply_source.toStdString().c_str(), 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
         }
 		    else if(abs(cruiseTarget - v_cruise) > 0.5) {
-            sprintf(apply_speed_str, "%d", (int)((s->scene.is_metric)?cruiseTarget: cruiseTarget * KM_TO_MILE + 0.5));
+            snprintf(apply_speed_str, sizeof(apply_speed_str), "%d", (int)std::lround((s->scene.is_metric) ? cruiseTarget : cruiseTarget * KM_TO_MILE));
 			      ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, "eco", 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 		    }
@@ -2565,6 +2571,8 @@ public:
             int inner_r = 70;
             int sign_size = outer_r * 2;
 
+            drawRealSpeedBox(s, disp_speed, sign_x, sign_y, outer_r);
+
             nvgBeginPath(s->vg);
             nvgCircle(s->vg, sign_x, sign_y, outer_r);
             nvgFillColor(s->vg, COLOR_RED);
@@ -2583,8 +2591,7 @@ public:
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
             }
-            drawAutoRoadSpeedAdjustButton(s, sign_x, sign_y, outer_r);
-            drawRealSpeedBox(s, disp_speed);
+            drawAutoRoadSpeedAdjustButton(s);
         }
 
         if (show_device_state) {

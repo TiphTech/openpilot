@@ -590,8 +590,15 @@ class CarState(CarStateBase):
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
       ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)
 
-    # Only show cruise braking when the stock SCC is actually commanding meaningful decel.
-    scc_braking = ret.cruiseState.enabled and not ret.gasPressed and (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.3)
+    # CAN-FD SCC can request slight negative accel continuously, which made the UI flash red.
+    # Only surface SCC braking when both the request and measured vehicle decel are clearly negative.
+    scc_braking = (
+      ret.cruiseState.enabled and
+      not ret.gasPressed and
+      ret.vEgo > 1.0 and
+      ret.aEgo < -0.15 and
+      (cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"] < -0.5)
+    )
     ret.brakeLights = ret.brakeLights or scc_braking
 
     speed_limit_cam = False
