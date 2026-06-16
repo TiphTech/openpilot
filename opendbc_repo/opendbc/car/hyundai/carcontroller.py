@@ -571,6 +571,7 @@ class CarController(CarControllerBase):
     target = int(set_speed_in_units+0.5)
     current = int(CS.out.cruiseState.speed * (CV.MS_TO_KPH if CS.is_metric else CV.MS_TO_MPH) + 0.5)
     v_ego_kph = CS.out.vEgo * CV.MS_TO_KPH
+    allow_set_speed_spam = self.speed_from_pcm != 1 or self.camera_scc_params == 2
 
     send_button = 0
     activate_cruise = False
@@ -583,9 +584,9 @@ class CarController(CarControllerBase):
           activate_cruise = True
       elif CC.cruiseControl.resume:
         send_button = Buttons.RES_ACCEL
-      elif target < current and current>= 31 and self.speed_from_pcm != 1:
+      elif target < current and current>= 31 and allow_set_speed_spam:
         send_button = Buttons.SET_DECEL
-      elif target > current and current < 160 and self.speed_from_pcm != 1:
+      elif target > current and current < 160 and allow_set_speed_spam:
         send_button = Buttons.RES_ACCEL
     elif CS.out.activateCruise: #CC.cruiseControl.activate:
       if (hud_control.leadVisible or v_ego_kph > 10.0) and self.activateCruise == 0:
@@ -679,4 +680,3 @@ class HyundaiJerk:
         self.jerk_l = min(max(1.0, -self.jerk * 4.0), jerk_max_l)
         self.cb_upper = np.clip(0.9 + accel * 0.2, 0, 1.2)
         self.cb_lower = np.clip(0.8 + accel * 0.2, 0, 1.2)
-

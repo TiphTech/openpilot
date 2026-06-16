@@ -1363,22 +1363,6 @@
     },
     {
       "group": "화면",
-      "name": "ShowDateTime",
-      "title": "시간정보표시",
-      "descr": "0:표시안함\n 1:시간+날짜\n 2:시간\n 3:날짜",
-      "egroup": "DISP",
-      "etitle": "Show Time Info",
-      "edescr": "0:None, 1:Time/Date, 2:Time, 3:Date",
-      "min": 0,
-      "max": 3,
-      "default": 1,
-      "unit": 1,
-      "cgroup": "显示设置",
-      "ctitle": "显示时间信息",
-      "cdescr": "0: 无, 1: 时间/日期, 2: 时间, 3: 日期"
-    },
-    {
-      "group": "화면",
       "name": "ShowPathEnd",
       "title": "패스끝표시",
       "descr": "",

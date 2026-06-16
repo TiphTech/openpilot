@@ -2319,22 +2319,26 @@ public:
     float freeSpace = 0.0f;
     float voltage = 0.0f;
     bool deviceStateCritical = false;
-    void drawAutoRoadSpeedAdjustButton(const UIState* s) {
+    void drawAutoRoadSpeedAdjustButton(const UIState* s, int panel_x, int panel_y, int panel_w) {
         const bool auto_adjust_enabled = params.getInt("AutoRoadSpeedAdjust") > 0;
         const NVGcolor color = auto_adjust_enabled ? COLOR_FLUO_GREEN : COLOR_WHITE;
         const char *icon_name = auto_adjust_enabled ? "ic_auto_speed_limit_green" : "ic_auto_speed_limit_white";
         const NVGcolor bg = COLOR_BLACK_ALPHA(125);
         NVGcolor stroke = color;
-        const int box_w = 170;
-        const int box_h = 110;
-        const int box_x = s->fb_w - box_w - 36;
-        const int box_y = 44;
-        const int auto_icon_size = 62;
+        const int box_w = 320;
+        const int box_h = 92;
+        const int box_x = 62;
+        const int box_y = 356;
+        const int auto_icon_size = 58;
+        const char *label = auto_adjust_enabled ? "AUTO" : "MANUAL";
+        const int content_gap = 18;
+        const int content_w = auto_adjust_enabled ? 226 : 300;
+        const int content_x = box_x + (box_w - content_w) / 2;
 
-        ui_fill_rect(s->vg, { box_x, box_y, box_w, box_h }, bg, 24, 3, &stroke);
-        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, box_x + box_w / 2, box_y + 34, "AUTO", 24, color, BOLD, 2.0f, 3.0f);
-        ui_draw_image(s, { box_x + (box_w - auto_icon_size) / 2, box_y + 42, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
+        ui_fill_rect(s->vg, { box_x, box_y, box_w, box_h }, bg, 30, 3, &stroke);
+        ui_draw_image(s, { content_x, box_y + (box_h - auto_icon_size) / 2, auto_icon_size, auto_icon_size }, icon_name, 1.0f);
+        nvgTextAlign(s->vg, NVG_ALIGN_LEFT | NVG_ALIGN_MIDDLE);
+        ui_draw_text(s, content_x + auto_icon_size + content_gap, box_y + box_h / 2 + 2, label, 40, color, BOLD, 2.0f, 3.0f);
     }
     void drawRealSpeedBox(const UIState* s, int speed_limit_display, int sign_x, int sign_y, int outer_r) {
         const int actual_speed_display = (int)std::lround((s->scene.is_metric ? v_ego_real * MS_TO_KPH : v_ego_real * MS_TO_MPH));
@@ -2378,12 +2382,11 @@ public:
         if (xSpdLimit > 0 && xSignType != 22 && xSignType != 4) cam_detected = true;
         NVGcolor stroke_color = COLOR_WHITE;
         NVGcolor bg_color = (cam_detected && blink_timer > 8)?COLOR_RED_ALPHA(180):COLOR_BLACK_ALPHA(90);
-        if (show_device_state > 0) {
-          ui_fill_rect(s->vg, { bx - 120, by - 270, 475, 495 }, bg_color, 30, 2, &stroke_color);
-        }
-        else {
-          ui_fill_rect(s->vg, { bx - 120, by - 270 + 140, 475, 495 - 140 }, bg_color, 30, 2, &stroke_color);
-        }
+        const int panel_x = bx - 120;
+        const int panel_y = show_device_state > 0 ? by - 270 : by - 130;
+        const int panel_w = 475;
+        const int panel_h = show_device_state > 0 ? 495 : 355;
+        ui_fill_rect(s->vg, { panel_x, panel_y, panel_w, panel_h }, bg_color, 30, 2, &stroke_color);
 
 
         // draw traffic light
@@ -2591,37 +2594,40 @@ public:
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);
             }
-            drawAutoRoadSpeedAdjustButton(s);
+            drawAutoRoadSpeedAdjustButton(s, panel_x, panel_y, panel_w);
         }
 
         if (show_device_state) {
             char str[128];
-            dx = bx - 35;
-            dy = by - 200;
+            const int stat_tile_w = 122;
+            const int stat_tile_h = 92;
+            const int stat_gap = 14;
+            dx = panel_x + 40 + stat_tile_w / 2;
+            dy = panel_y + 86;
             mode_color = COLOR_GREEN_ALPHA(190);
-            ui_fill_rect(s->vg, { dx - 65, dy - 38, 130, 90 }, (cpuTemp>80 && blink_timer<=8)?COLOR_RED : mode_color, 15, 2);
-            ui_draw_text(s, dx, dy-5, "CPU", 25, COLOR_WHITE, BOLD);
+            ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, (cpuTemp>80 && blink_timer<=8)?COLOR_RED : mode_color, 15, 2);
+            ui_draw_text(s, dx, dy - 16, "CPU", 24, COLOR_WHITE, BOLD);
             sprintf(str, "%.0f\u00B0C", cpuTemp);
-            ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
 
-            dx += 150;
-            ui_fill_rect(s->vg, { dx - 65, dy - 38, 130, 90 }, (memoryUsage > 85 && blink_timer <= 8) ? COLOR_RED : mode_color, 15, 2);
-            ui_draw_text(s, dx, dy-5, "MEM", 25, COLOR_WHITE, BOLD);
+            dx += stat_tile_w + stat_gap;
+            ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, (memoryUsage > 85 && blink_timer <= 8) ? COLOR_RED : mode_color, 15, 2);
+            ui_draw_text(s, dx, dy - 16, "MEM", 24, COLOR_WHITE, BOLD);
             sprintf(str, "%d%%", memoryUsage);
-            ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
 
-            dx += 150;
+            dx += stat_tile_w + stat_gap;
             if (disp_timer < 32) {
-              ui_fill_rect(s->vg, { dx - 65, dy - 38, 130, 90 }, mode_color, 15, 2);
-              ui_draw_text(s, dx, dy - 5, "DISK", 25, COLOR_WHITE, BOLD);
+              ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, mode_color, 15, 2);
+              ui_draw_text(s, dx, dy - 16, "DISK", 24, COLOR_WHITE, BOLD);
               sprintf(str, "%.0f%%", 100 - freeSpace);
-              ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
+              ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
             }
             else {
-              ui_fill_rect(s->vg, { dx - 65, dy - 38, 130, 90 }, mode_color, 15, 2);
-              ui_draw_text(s, dx, dy - 5, "VOLT", 25, COLOR_WHITE, BOLD);
+              ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, mode_color, 15, 2);
+              ui_draw_text(s, dx, dy - 16, "VOLT", 24, COLOR_WHITE, BOLD);
             sprintf(str, "%.1fV", voltage);
-            ui_draw_text(s, dx, dy + 40, str, 40, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
             }
         }
 
@@ -2644,40 +2650,6 @@ public:
         nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
         ui_draw_text(s, s->fb_w - 25, s->fb_h - 45, torque_str, 36, COLOR_WHITE, BOLD, 3.0f, 2.0f);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-    }
-    void drawDateTime(const UIState* s) {
-        char str[128];
-        // 시간표시
-        int show_datetime = params.getInt("ShowDateTime");
-        if (show_datetime) {
-            time_t now = time(nullptr);
-            struct tm* local = localtime(&now);
-
-            int x = 170;// s->fb_w - 300;
-            int y = 120;// 150;
-            int nav_y = y + 50;
-
-            nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-            if (show_datetime == 1 || show_datetime == 2) {
-                strftime(str, sizeof(str), "%H:%M", local);
-                ui_draw_text(s, x, y, str, 100, COLOR_WHITE, BOLD, 3.0f, 8.0f);
-
-            }
-            if (show_datetime == 1 || show_datetime == 3) {
-                //strftime(str, sizeof(str), "%m-%d-%a", local);
-                const char* weekdays_ko[] = { "일", "월", "화", "수", "목", "금", "토" };
-                strftime(str, sizeof(str), "%m-%d", local); // 날짜만 가져옴
-                int weekday_index = local->tm_wday; // tm_wday: 0=일, 1=월, ..., 6=토
-                snprintf(str + strlen(str), sizeof(str) - strlen(str), "(%s)", weekdays_ko[weekday_index]);
-
-                ui_draw_text(s, x, y + 70, str, 60, COLOR_WHITE, BOLD, 3.0f, 8.0f);
-                nav_y += 70;
-            }
-            if (false && szPosRoadName.size() > 0) {
-                nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
-                ui_draw_text(s, x, nav_y, szPosRoadName.toStdString().c_str(), 35, COLOR_WHITE, BOLD, 3.0f, 8.0f);
-            }
-        }
     }
     void drawConnInfo(const UIState* s) {
         int y = 10;
@@ -3122,7 +3094,6 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
   drawCarrot.drawHud(s);
 
   drawCarrot.drawDebug(s);
-  drawCarrot.drawDateTime(s);
   //drawCarrot.drawConnInfo(s);
   drawCarrot.drawDeviceInfo(s);
   drawTurnInfo.draw(s);

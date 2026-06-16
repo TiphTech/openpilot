@@ -924,7 +924,6 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
 
   dispToggles = new ListWidget(this);
   dispToggles->addItem(new CValueControl("ShowDebugUI", tr("Debug Info"), "", 0, 2, 1));
-  dispToggles->addItem(new CValueControl("ShowDateTime", tr("Time Info"), tr("0:None,1:Time/Date,2:Time,3:Date"), 0, 3, 1));
   dispToggles->addItem(new CValueControl("ShowPathEnd", tr("Path End"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowDeviceState", tr("Device State"), tr("0:None,1:Display"), 0, 1, 1));
   dispToggles->addItem(new CValueControl("ShowLaneInfo", tr("Lane Info"), tr("-1:None, 0:Path, 1:Path+Lane, 2: Path+Lane+RoadEdge"), -1, 2, 1));
