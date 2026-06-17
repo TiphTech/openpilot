@@ -200,6 +200,9 @@ class VCruiseCarrot:
     self.trafficState = 0
     self.aTarget = 0
     self.nRoadLimitSpeed = 30
+    self.xSpdLimit = 0
+    self.xSpdDist = 0
+    self.xSpdType = -1
     self.desiredSpeed = 250
     self.road_limit_kph = 30
     self.nRoadLimitSpeed_last = 30
@@ -303,6 +306,9 @@ class VCruiseCarrot:
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
       self.nRoadLimitSpeed = carrot_man.nRoadLimitSpeed
+      self.xSpdLimit = carrot_man.xSpdLimit
+      self.xSpdDist = carrot_man.xSpdDist
+      self.xSpdType = carrot_man.xSpdType
       self.desiredSpeed = carrot_man.desiredSpeed
       self.carrot_cmd_index = carrot_man.carrotCmdIndex
       self.carrot_cmd = carrot_man.carrotCmd
@@ -478,7 +484,20 @@ class VCruiseCarrot:
       return float(self.nRoadLimitSpeed)
     return 0.0
 
-  def _auto_sync_road_limit_kph(self):
+  def _auto_sync_road_limit_kph(self, CS):
+    camera_limit_active = (
+      self.xSpdLimit >= 30 and
+      self.xSpdType not in (22, 4) and
+      (self.xSpdDist > 0 or self.xSpdType in (100, 101))
+    )
+    if camera_limit_active:
+      return float(self.xSpdLimit)
+
+    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
+    stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
+    if stock_limit_kph >= 30 and stock_limit_distance > 0:
+      return stock_limit_kph
+
     if self.nRoadLimitSpeed >= 30:
       return float(self.nRoadLimitSpeed)
     return 0.0
@@ -728,7 +747,7 @@ class VCruiseCarrot:
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
 
   def _auto_speed_up(self, CS, v_cruise_kph, force=False):
-    road_limit_kph = self._auto_sync_road_limit_kph()
+    road_limit_kph = self._auto_sync_road_limit_kph(CS)
     self.road_limit_kph = road_limit_kph
 
     auto_enabled = self.autoRoadSpeedAdjust > 0
