@@ -211,6 +211,7 @@ class VCruiseCarrot:
     self._last_auto_apply_frame = -10000
     self._auto_road_apply_cooldown_frames = int(1.5 / 0.01)
     self._auto_road_manual_override_until_frame = 0
+    self._auto_road_manual_override_limit_kph = 0.0
     self._pending_pcm_set_speed_kph = 0.0
 
     self.carrot_cmd_index_last = 0
@@ -476,31 +477,21 @@ class VCruiseCarrot:
     return button_kph, button_type, self.long_pressed
 
   def _displayed_road_limit_kph(self, CS):
-    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
-    stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
-    if stock_limit_kph >= 30 and stock_limit_distance > 0:
-      return stock_limit_kph
-    if self.nRoadLimitSpeed >= 30:
-      return float(self.nRoadLimitSpeed)
-    return 0.0
-
-  def _auto_sync_road_limit_kph(self, CS):
-    camera_limit_active = (
-      self.xSpdLimit >= 30 and
-      self.xSpdType not in (22, 4) and
-      (self.xSpdDist > 0 or self.xSpdType in (100, 101))
-    )
-    if camera_limit_active:
+    camera_limit = self.xSpdLimit > 0 and self.xSpdType >= 0 and self.xSpdType != 22
+    if camera_limit:
       return float(self.xSpdLimit)
 
     stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
     stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
-    if stock_limit_kph >= 30 and stock_limit_distance > 0:
+    if stock_limit_kph > 0 and stock_limit_distance > 0:
       return stock_limit_kph
 
-    if self.nRoadLimitSpeed >= 30:
+    if self.nRoadLimitSpeed > 0:
       return float(self.nRoadLimitSpeed)
     return 0.0
+
+  def _auto_sync_road_limit_kph(self, CS):
+    return self._displayed_road_limit_kph(CS)
 
   def _stock_camera_zone_active(self, CS):
     return False
@@ -585,6 +576,7 @@ class VCruiseCarrot:
       if self.autoRoadSpeedAdjust > 0:
         # Allow manual +/- override without immediate re-apply from the same speed-limit source.
         self._auto_road_manual_override_until_frame = self.frame + int(20.0 / 0.01)
+        self._auto_road_manual_override_limit_kph = self._displayed_road_limit_kph(CS)
       if self.autoCruiseControl_cancel_timer > 0:
         self._add_log(f"AutoCruiseControl cancel timer RESET {button_type}")
         self.autoCruiseControl_cancel_timer = 0
@@ -752,12 +744,16 @@ class VCruiseCarrot:
 
     auto_enabled = self.autoRoadSpeedAdjust > 0
     road_limit_changed = road_limit_kph >= 30 and abs(road_limit_kph - self._displayed_road_limit_kph_last) >= 0.5
+    manual_override_same_limit = (
+      self.frame < self._auto_road_manual_override_until_frame and
+      abs(road_limit_kph - self._auto_road_manual_override_limit_kph) < 0.5
+    )
     can_auto_apply = (
       auto_enabled and
       self._hyundai_camera_scc == 2 and
       CS.cruiseState.enabled and
       not self._pause_auto_speed_up and
-      self.frame >= self._auto_road_manual_override_until_frame
+      not manual_override_same_limit
     )
 
     if (force and road_limit_kph >= 30 and self._hyundai_camera_scc == 2) or (can_auto_apply and road_limit_changed):
