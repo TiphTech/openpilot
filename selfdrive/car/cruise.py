@@ -174,6 +174,7 @@ class VCruiseCarrot:
     self._cancel_button_mode = 0
     self._lfa_button_mode = 0
     self._hyundai_camera_scc = 0
+    self.autoNaviSpeedCtrlMode = 0
 
     self._gas_pressed_count = 0
     self._gas_pressed_count_last = 0
@@ -279,6 +280,7 @@ class VCruiseCarrot:
       self._cancel_button_mode = self.params.get_int("CancelButtonMode")
       self._lfa_button_mode = self.params.get_int("LfaButtonMode")
       self._hyundai_camera_scc = self.params.get_int("HyundaiCameraSCC")
+      self.autoNaviSpeedCtrlMode = self.params.get_int("AutoNaviSpeedCtrlMode")
       self.autoRoadSpeedLimitOffset = self.params.get_int("AutoRoadSpeedLimitOffset")
       self.autoNaviSpeedSafetyFactor = self.params.get_float("AutoNaviSpeedSafetyFactor") * 0.01
       self.cruiseOnDist = self.params.get_float("CruiseOnDist") * 0.01
@@ -476,34 +478,54 @@ class VCruiseCarrot:
 
     return button_kph, button_type, self.long_pressed
 
-  def _displayed_road_limit_kph(self, CS):
+  def _displayed_road_limit_info(self, CS):
     camera_limit = self.xSpdLimit > 0 and self.xSpdType >= 0 and self.xSpdType != 22
     if camera_limit:
-      return float(self.xSpdLimit)
+      return float(self.xSpdLimit), True
 
     stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
     stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
     if stock_limit_kph > 0 and stock_limit_distance > 0:
-      return stock_limit_kph
+      return stock_limit_kph, False
 
     if self.nRoadLimitSpeed > 0:
-      return float(self.nRoadLimitSpeed)
-    return 0.0
+      return float(self.nRoadLimitSpeed), False
+    return 0.0, False
 
-  def _auto_sync_road_limit_kph(self, CS):
-    return self._displayed_road_limit_kph(CS)
+  def _displayed_road_limit_kph(self, CS):
+    road_limit_kph, _ = self._displayed_road_limit_info(CS)
+    return road_limit_kph
 
-  def _stock_camera_zone_active(self, CS):
-    return False
+  def _camera_zone_limit_info(self, CS):
+    if self.autoNaviSpeedCtrlMode <= 0:
+      return 0.0, False
 
-  def _road_limit_cluster_kph(self, CS, road_limit_kph=None):
+    carrot_camera_zone = (
+      self.xSpdLimit >= 30 and
+      self.xSpdType >= 0 and
+      self.xSpdType != 22 and
+      (self.xSpdDist > 0 or self.xSpdType in (4, 100, 101))
+    )
+    if carrot_camera_zone:
+      return float(self.xSpdLimit), True
+
+    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
+    stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
+    if stock_limit_kph >= 30 and stock_limit_distance > 0:
+      return stock_limit_kph, False
+
+    return 0.0, False
+
+  def _road_limit_cluster_kph(self, CS, road_limit_kph=None, limit_is_adjusted=False):
     if road_limit_kph is None:
-      road_limit_kph = self._displayed_road_limit_kph(CS)
+      road_limit_kph, limit_is_adjusted = self._displayed_road_limit_info(CS)
 
     if road_limit_kph < 30:
       return float(np.clip(self.v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max))
 
-    if self.autoRoadSpeedLimitOffset < 0:
+    if limit_is_adjusted:
+      target_kph = float(road_limit_kph)
+    elif self.autoRoadSpeedLimitOffset < 0:
       target_kph = float(road_limit_kph) * self.autoNaviSpeedSafetyFactor
     else:
       target_kph = float(road_limit_kph + self.autoRoadSpeedLimitOffset)
@@ -513,13 +535,13 @@ class VCruiseCarrot:
       target_kph = target_kph / v_clu_ratio
     return float(np.clip(target_kph, self._cruise_speed_min, self._cruise_speed_max))
 
-  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None):
+  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None, limit_is_adjusted=False):
     if road_limit_kph is None:
-      road_limit_kph = self._displayed_road_limit_kph(CS)
+      road_limit_kph, limit_is_adjusted = self._displayed_road_limit_info(CS)
     if road_limit_kph < 30:
       return v_cruise_kph
 
-    target_kph = self._road_limit_cluster_kph(CS, road_limit_kph)
+    target_kph = self._road_limit_cluster_kph(CS, road_limit_kph, limit_is_adjusted=limit_is_adjusted)
     if abs(target_kph - v_cruise_kph) < 0.5:
       return v_cruise_kph
 
@@ -739,7 +761,21 @@ class VCruiseCarrot:
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
 
   def _auto_speed_up(self, CS, v_cruise_kph, force=False):
-    road_limit_kph = self._auto_sync_road_limit_kph(CS)
+    camera_zone_kph, camera_limit_is_adjusted = self._camera_zone_limit_info(CS)
+    if camera_zone_kph >= 30 and self._hyundai_camera_scc == 2 and CS.cruiseState.enabled:
+      v_cruise_kph = self._apply_road_limit_set_speed(
+        CS,
+        v_cruise_kph,
+        "Speed camera zone",
+        road_limit_kph=camera_zone_kph,
+        limit_is_adjusted=camera_limit_is_adjusted,
+      )
+      self.road_limit_kph = camera_zone_kph
+      self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
+      self._displayed_road_limit_kph_last = camera_zone_kph
+      return v_cruise_kph
+
+    road_limit_kph, road_limit_is_adjusted = self._displayed_road_limit_info(CS)
     self.road_limit_kph = road_limit_kph
 
     auto_enabled = self.autoRoadSpeedAdjust > 0
@@ -759,9 +795,9 @@ class VCruiseCarrot:
     if (force and road_limit_kph >= 30 and self._hyundai_camera_scc == 2) or (can_auto_apply and road_limit_changed):
       previous_limit_kph = self._displayed_road_limit_kph_last
       if force:
-        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, "Cruise speed set to road limit", road_limit_kph=road_limit_kph)
+        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, "Cruise speed set to road limit", road_limit_kph=road_limit_kph, limit_is_adjusted=road_limit_is_adjusted)
       else:
-        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, f"Auto road limit {previous_limit_kph:.0f}->{road_limit_kph:.0f} =>", road_limit_kph=road_limit_kph)
+        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, f"Auto road limit {previous_limit_kph:.0f}->{road_limit_kph:.0f} =>", road_limit_kph=road_limit_kph, limit_is_adjusted=road_limit_is_adjusted)
 
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
     self._displayed_road_limit_kph_last = road_limit_kph
