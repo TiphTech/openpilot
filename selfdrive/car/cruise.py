@@ -208,6 +208,7 @@ class VCruiseCarrot:
     self.road_limit_kph = 30
     self.nRoadLimitSpeed_last = 30
     self._displayed_road_limit_kph_last = 0.0
+    self._displayed_road_limit_value_last = 0
     self._last_auto_applied_road_limit = 0
     self._last_auto_apply_frame = -10000
     self._auto_road_apply_cooldown_frames = int(1.5 / 0.01)
@@ -496,6 +497,12 @@ class VCruiseCarrot:
     road_limit_kph, _ = self._displayed_road_limit_info(CS)
     return road_limit_kph
 
+  def _displayed_road_limit_value(self, CS):
+    road_limit_kph, _ = self._displayed_road_limit_info(CS)
+    if road_limit_kph < 0.5:
+      return 0
+    return int(road_limit_kph + 0.5)
+
   def _camera_zone_limit_info(self, CS):
     if self.autoNaviSpeedCtrlMode <= 0:
       return 0.0, False
@@ -773,34 +780,33 @@ class VCruiseCarrot:
       self.road_limit_kph = camera_zone_kph
       self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
       self._displayed_road_limit_kph_last = camera_zone_kph
+      self._displayed_road_limit_value_last = int(camera_zone_kph + 0.5)
       return v_cruise_kph
 
     road_limit_kph, road_limit_is_adjusted = self._displayed_road_limit_info(CS)
+    road_limit_value = self._displayed_road_limit_value(CS)
     self.road_limit_kph = road_limit_kph
 
     auto_enabled = self.autoRoadSpeedAdjust > 0
-    road_limit_changed = road_limit_kph >= 30 and abs(road_limit_kph - self._displayed_road_limit_kph_last) >= 0.5
-    manual_override_same_limit = (
-      self.frame < self._auto_road_manual_override_until_frame and
-      abs(road_limit_kph - self._auto_road_manual_override_limit_kph) < 0.5
-    )
+    road_limit_changed = road_limit_value >= 30 and road_limit_value != self._displayed_road_limit_value_last
     can_auto_apply = (
       auto_enabled and
       self._hyundai_camera_scc == 2 and
       CS.cruiseState.enabled and
-      not self._pause_auto_speed_up and
-      not manual_override_same_limit
+      not CS.gasPressed and
+      not CS.brakePressed
     )
 
     if (force and road_limit_kph >= 30 and self._hyundai_camera_scc == 2) or (can_auto_apply and road_limit_changed):
-      previous_limit_kph = self._displayed_road_limit_kph_last
+      previous_limit_kph = self._displayed_road_limit_value_last
       if force:
         v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, "Cruise speed set to road limit", road_limit_kph=road_limit_kph, limit_is_adjusted=road_limit_is_adjusted)
       else:
-        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, f"Auto road limit {previous_limit_kph:.0f}->{road_limit_kph:.0f} =>", road_limit_kph=road_limit_kph, limit_is_adjusted=road_limit_is_adjusted)
+        v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, f"Auto road limit {previous_limit_kph}->{road_limit_value} =>", road_limit_kph=road_limit_kph, limit_is_adjusted=road_limit_is_adjusted)
 
     self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
     self._displayed_road_limit_kph_last = road_limit_kph
+    self._displayed_road_limit_value_last = road_limit_value
     return v_cruise_kph
 
   def _cruise_control(self, enable, cancel_timer, reason):
