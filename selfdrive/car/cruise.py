@@ -792,9 +792,7 @@ class VCruiseCarrot:
     can_auto_apply = (
       auto_enabled and
       self._hyundai_camera_scc == 2 and
-      CS.cruiseState.enabled and
-      not CS.gasPressed and
-      not CS.brakePressed
+      CS.cruiseState.enabled
     )
 
     if (force and road_limit_kph >= 30 and self._hyundai_camera_scc == 2) or (can_auto_apply and road_limit_changed):
