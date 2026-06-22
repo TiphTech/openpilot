@@ -205,6 +205,7 @@ class VCruiseCarrot:
     self.xSpdDist = 0
     self.xSpdType = -1
     self.desiredSpeed = 250
+    self.activeCarrot = 0
     self.road_limit_kph = 30
     self.nRoadLimitSpeed_last = 30
     self._displayed_road_limit_kph_last = 0.0
@@ -313,6 +314,7 @@ class VCruiseCarrot:
       self.xSpdLimit = carrot_man.xSpdLimit
       self.xSpdDist = carrot_man.xSpdDist
       self.xSpdType = carrot_man.xSpdType
+      self.activeCarrot = carrot_man.activeCarrot
       self.desiredSpeed = carrot_man.desiredSpeed
       self.carrot_cmd_index = carrot_man.carrotCmdIndex
       self.carrot_cmd = carrot_man.carrotCmd
@@ -511,7 +513,11 @@ class VCruiseCarrot:
       self.xSpdLimit >= 30 and
       self.xSpdType >= 0 and
       self.xSpdType != 22 and
-      (self.xSpdDist > 0 or self.xSpdType in (4, 100, 101))
+      (
+        self.xSpdDist > 0 or
+        self.xSpdType in (4, 100, 101) or
+        self.activeCarrot in (3, 4, 6)
+      )
     )
     if carrot_camera_zone:
       return float(self.xSpdLimit), True

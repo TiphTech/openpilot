@@ -2345,7 +2345,7 @@ public:
         const bool over_limit = speed_limit_display >= 30 && actual_speed_display > speed_limit_display;
         const NVGcolor accent = over_limit ? COLOR_RED : COLOR_WHITE;
         const NVGcolor bg = COLOR_BLACK_ALPHA(125);
-        const int panel_w = 176;
+        const int panel_w = 206;
         const int panel_h = 304;
         const int panel_x = sign_x - panel_w / 2;
         const int panel_y = sign_y - outer_r - 16;
