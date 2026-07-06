@@ -305,7 +305,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"PathOffset", {PERSISTENT, INT, "0"}},
     {"CameraYawTrimDeg", {PERSISTENT, INT, "0"}},
 
-    {"LateralTorqueCustom", {PERSISTENT, INT, "0"}},
+    {"LateralTorqueCustom", {PERSISTENT, INT, "1"}},
     {"LateralTorqueAccelFactor", {PERSISTENT, INT, "2500"}},
     {"TorqueAccelFactorVariable", {PERSISTENT, INT, "0"}},
     {"LateralTorqueFriction", {PERSISTENT, INT, "100"}},
