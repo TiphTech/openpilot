@@ -1227,16 +1227,10 @@ public:
           
         active_carrot = carrot_man.getActiveCarrot();
 
-        if (active_carrot > 1) {
-          xSpdLimit = carrot_man.getXSpdLimit();
-          xSpdDist = carrot_man.getXSpdDist();
-          xSignType = carrot_man.getXSpdType();
-        }
-        else {
-          xSpdLimit = 0;
-          xSpdDist = 0;
-          xSignType = 0;
-        }
+        // Show the speed-camera warning whenever navigation publishes it, whether or not cruise is active.
+        xSpdLimit = carrot_man.getXSpdLimit();
+        xSpdDist = carrot_man.getXSpdDist();
+        xSignType = carrot_man.getXSpdType();
         xTurnInfo = carrot_man.getXTurnInfo();
         xDistToTurn = carrot_man.getXDistToTurn();
         nRoadLimitSpeed = carrot_man.getNRoadLimitSpeed();
