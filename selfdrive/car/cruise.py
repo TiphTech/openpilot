@@ -548,13 +548,17 @@ class VCruiseCarrot:
       target_kph = target_kph / v_clu_ratio
     return float(np.clip(target_kph, self._cruise_speed_min, self._cruise_speed_max))
 
-  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None, limit_is_adjusted=False):
+  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None, limit_is_adjusted=False, raw_road_limit=False):
     if road_limit_kph is None:
       road_limit_kph, limit_is_adjusted = self._displayed_road_limit_info(CS)
     if road_limit_kph < 30:
       return v_cruise_kph
 
-    target_kph = self._road_limit_cluster_kph(CS, road_limit_kph, limit_is_adjusted=limit_is_adjusted)
+    if raw_road_limit:
+      # Speed-camera zones must use the posted limit exactly: no offset or cluster-speed correction.
+      target_kph = float(np.clip(road_limit_kph, self._cruise_speed_min, self._cruise_speed_max))
+    else:
+      target_kph = self._road_limit_cluster_kph(CS, road_limit_kph, limit_is_adjusted=limit_is_adjusted)
     if abs(target_kph - v_cruise_kph) < 0.5:
       return v_cruise_kph
 
@@ -782,6 +786,7 @@ class VCruiseCarrot:
         "Speed camera zone",
         road_limit_kph=camera_zone_kph,
         limit_is_adjusted=camera_limit_is_adjusted,
+        raw_road_limit=True,
       )
       self.road_limit_kph = camera_zone_kph
       self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
