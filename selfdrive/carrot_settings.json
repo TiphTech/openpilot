@@ -2144,6 +2144,22 @@
     },
     {
       "group": "감속제어",
+      "name": "AutoNaviSpeedCtrlAfterDist",
+      "title": "과속카메라 통과후 유지거리(50m)",
+      "descr": "과속카메라 통과 후 제한속도를 유지하는 거리입니다.",
+      "egroup": "SPEED",
+      "etitle": "SpeedCamAfterDistance(50m)",
+      "edescr": "Distance to keep the camera speed limit after passing the camera.",
+      "min": 0,
+      "max": 250,
+      "default": 50,
+      "unit": 10,
+      "cgroup": "速度控制",
+      "ctitle": "测速摄像头后保持距离 (50米)",
+      "cdescr": "通过测速摄像头后保持限速的距离。"
+    },
+    {
+      "group": "감속제어",
       "name": "AutoNaviSpeedCtrlMode",
       "title": "네비게이션감속모드(2)",
       "descr": "0: 감속안함\n1: 과속카메라\n2: 과속카메라+과속방지턱\n3: 과속카메라+과속방지턱+이동식카메라",

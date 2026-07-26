@@ -201,6 +201,7 @@ class CarrotServ:
     self.autoNaviSpeedBumpSpeed = float(self.params.get_int("AutoNaviSpeedBumpSpeed"))
     self.autoNaviSpeedBumpTime = float(self.params.get_int("AutoNaviSpeedBumpTime"))
     self.autoNaviSpeedCtrlEnd = float(self.params.get_int("AutoNaviSpeedCtrlEnd"))
+    self.autoNaviSpeedCtrlAfterDist = float(self.params.get_int("AutoNaviSpeedCtrlAfterDist"))
     self.autoNaviSpeedCtrlMode = self.params.get_int("AutoNaviSpeedCtrlMode")
     self.autoNaviSpeedSafetyFactor = float(self.params.get_int("AutoNaviSpeedSafetyFactor")) * 0.01
     self.autoNaviSpeedDecelRate = float(self.params.get_int("AutoNaviSpeedDecelRate")) * 0.01
@@ -910,7 +911,7 @@ class CarrotServ:
     if self.active_carrot <= 1 or self.active_kisa_count > 0:
       self.update_nav_instruction(sm)
 
-    if self.xSpdType < 0 or (self.xSpdType not in [100,101] and self.xSpdDist <= 0) or (self.xSpdType in [100,101] and self.xSpdDist < -250):
+    if self.xSpdType < 0 or (self.xSpdType not in [100,101] and self.xSpdDist <= 0) or (self.xSpdType in [100,101] and self.xSpdDist < -self.autoNaviSpeedCtrlAfterDist):
       self.xSpdType = -1
       self.xSpdDist = self.xSpdLimit = 0
     if self.xTurnInfo < 0 or self.xDistToTurn < -50:
