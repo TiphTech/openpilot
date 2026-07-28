@@ -1681,7 +1681,6 @@ protected:
 
         return true;
     }
-    int use_lane_line_speed_apply = 0;
 public:
     void draw(const UIState* s, float& pathDrawSeq) {
         SubMaster& sm = *(s->sm);
@@ -1695,11 +1694,11 @@ public:
             show_path_color_cruise_off = params.getInt("ShowPathColorCruiseOff");
         }
         if (!make_data(s)) return;
-        int temp = (int)car_state.getUseLaneLineSpeed();
-        if (temp != use_lane_line_speed_apply) {
-            ui_draw_text_a(s, 0, 0, (temp>0)?"LaneMode":"Laneless", 30, (temp>0)?COLOR_GREEN:COLOR_YELLOW, BOLD);
-            use_lane_line_speed_apply = temp;
-        }
+        nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
+        ui_draw_text(s, s->fb_w - 25, s->fb_h - 92,
+                     active_lane_line ? "LANEMODE" : "LANELESS", 30,
+                     active_lane_line ? COLOR_GREEN : COLOR_YELLOW, BOLD, 3.0f, 2.0f);
+        nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
         static bool forward = true;
         int alpha = 120;
         NVGcolor colors[10] = {
