@@ -139,24 +139,17 @@ class LatControlTorque(LatControl):
     self.torque_params.latAccelOffset = latAccelOffset
     self.torque_params.friction = friction
 
-  def update(self, active, CS, VM, params, steer_limited_by_controls, desired_curvature, CC, curvature_limited, model_data=None):
+  def update(self, active, CS, VM, params, steer_limited_by_controls, desired_curvature, CC, curvature_limited, model_data=None, active_lane_line=False):
     self.frame += 1
     if self.frame % 10 == 0:
       lateralTorqueCustom = self.params.get_int("LateralTorqueCustom")
       if lateralTorqueCustom > 0:
-        base_factor = self.params.get_float("LateralTorqueAccelFactor")
+        factor_name = "LateralTorqueAccelFactorLaneline" if active_lane_line else "LateralTorqueAccelFactor"
         try:
-          torque_accel_factor_variable = self.params.get_bool("TorqueAccelFactorVariable")
+          base_factor = self.params.get_float(factor_name)
         except UnknownKeyName:
-          torque_accel_factor_variable = False
-
-        if torque_accel_factor_variable:
-          v_kph = CS.vEgo * 3.6
-          # Piecewise linear interpolation target using TorqueAccelFactor as the 110 km/h anchor:
-          # <=50 km/h: 2000, 110 km/h: base_factor, >=130 km/h: 5000
-          center_factor = float(np.clip(base_factor, 1000.0, 6000.0))
-          dynamic_factor = np.interp(v_kph, [50.0, 110.0, 130.0], [2000.0, center_factor, 5000.0])
-          base_factor = float(np.clip(dynamic_factor, 1000.0, 6000.0))
+          base_factor = self.params.get_float("LateralTorqueAccelFactor")
+        base_factor = float(np.clip(base_factor, 1000.0, 6000.0))
         self.torque_params.latAccelFactor = base_factor*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001
         lateralTorqueKp = self.params.get_float("LateralTorqueKpV")*0.01

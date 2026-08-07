@@ -1695,7 +1695,7 @@ public:
         }
         if (!make_data(s)) return;
         nvgTextAlign(s->vg, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM);
-        ui_draw_text(s, s->fb_w - 25, s->fb_h - 92,
+        ui_draw_text(s, s->fb_w - 290, s->fb_h - 45,
                      active_lane_line ? "LANEMODE" : "LANELESS", 30,
                      active_lane_line ? COLOR_GREEN : COLOR_YELLOW, BOLD, 3.0f, 2.0f);
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
@@ -1966,6 +1966,7 @@ public:
     float   apply_speed = 250.0;
     QString apply_source = "";
     bool    latActive = false;
+    bool    active_lane_line = false;
     bool    longActive = false;
     int     xState = 0;
     int     trafficState = 0;
@@ -1994,7 +1995,7 @@ public:
         const bool car_control_alive = sm.alive("carControl");
         const bool carrot_man_alive = sm.alive("carrotMan");
         const bool lp_alive = sm.alive("longitudinalPlan");
-        //const auto cs = sm["controlsState"].getControlsState();
+        const auto cs = sm["controlsState"].getControlsState();
         const auto car_state = sm["carState"].getCarState();
         const auto car_control = sm["carControl"].getCarControl();
         const auto lp = sm["longitudinalPlan"].getLongitudinalPlan();
@@ -2010,6 +2011,7 @@ public:
         auto selfdrive_state = sm["selfdriveState"].getSelfdriveState();
         longActive = selfdrive_state.getEnabled();
         latActive = car_control.getLatActive();
+        active_lane_line = cs.getActiveLaneLine();
 
         v_cruise = car_state.getVCruiseCluster();
         v_ego_real = car_state.getVEgo();
@@ -2595,48 +2597,30 @@ public:
             const int stat_tile_w = 122;
             const int stat_tile_h = 92;
             const int stat_gap = 14;
+            const int stat_text_offset_x = -30;
             dx = panel_x + 40 + stat_tile_w / 2;
             dy = panel_y + 86;
             mode_color = COLOR_GREEN_ALPHA(190);
             ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, (cpuTemp>80 && blink_timer<=8)?COLOR_RED : mode_color, 15, 2);
-            ui_draw_text(s, dx, dy - 16, "CPU", 24, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx + stat_text_offset_x, dy - 16, "CPU", 24, COLOR_WHITE, BOLD);
             sprintf(str, "%.0f\u00B0C", cpuTemp);
-            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx + stat_text_offset_x, dy + 16, str, 38, COLOR_WHITE, BOLD);
 
             dx += stat_tile_w + stat_gap;
             ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, (memoryUsage > 85 && blink_timer <= 8) ? COLOR_RED : mode_color, 15, 2);
-            ui_draw_text(s, dx, dy - 16, "MEM", 24, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx + stat_text_offset_x, dy - 16, "MEM", 24, COLOR_WHITE, BOLD);
             sprintf(str, "%d%%", memoryUsage);
-            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
+            ui_draw_text(s, dx + stat_text_offset_x, dy + 16, str, 38, COLOR_WHITE, BOLD);
 
             dx += stat_tile_w + stat_gap;
-            if (disp_timer < 32) {
-              ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, mode_color, 15, 2);
-              ui_draw_text(s, dx, dy - 16, "DISK", 24, COLOR_WHITE, BOLD);
-              sprintf(str, "%.0f%%", 100 - freeSpace);
-              ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
-            }
-            else {
-              ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, mode_color, 15, 2);
-              ui_draw_text(s, dx, dy - 16, "VOLT", 24, COLOR_WHITE, BOLD);
-            sprintf(str, "%.1fV", voltage);
-            ui_draw_text(s, dx, dy + 16, str, 38, COLOR_WHITE, BOLD);
-            }
+            ui_fill_rect(s->vg, { dx - stat_tile_w / 2, dy - stat_tile_h / 2, stat_tile_w, stat_tile_h }, mode_color, 15, 2);
+            ui_draw_text(s, dx + stat_text_offset_x, dy - 16, "DISK", 24, COLOR_WHITE, BOLD);
+            sprintf(str, "%.0f%%", 100 - freeSpace);
+            ui_draw_text(s, dx + stat_text_offset_x, dy + 16, str, 38, COLOR_WHITE, BOLD);
         }
 
-        const auto car_state = (*(s->sm))["carState"].getCarState();
-        float torque_accel_factor = params.getFloat("LateralTorqueAccelFactor");
-        if (params.getBool("TorqueAccelFactorVariable")) {
-            const float v_kph = car_state.getVEgo() * 3.6f;
-            if (v_kph <= 50.0f) {
-                torque_accel_factor = 1600.0f;
-            } else if (v_kph >= 130.0f) {
-                torque_accel_factor = 5200.0f;
-            } else {
-                torque_accel_factor = 1600.0f + (v_kph - 50.0f) * ((5200.0f - 1600.0f) / 80.0f);
-            }
-            torque_accel_factor = std::clamp(torque_accel_factor, 1000.0f, 6000.0f);
-        }
+        const char* torque_factor_name = active_lane_line ? "LateralTorqueAccelFactorLaneline" : "LateralTorqueAccelFactor";
+        const float torque_accel_factor = std::clamp(params.getFloat(torque_factor_name), 1000.0f, 6000.0f);
 
         char torque_str[64];
         snprintf(torque_str, sizeof(torque_str), "LAT TQ %.0f", torque_accel_factor);

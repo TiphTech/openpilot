@@ -177,7 +177,8 @@ class Controls:
     steer, steeringAngleDeg, lac_log = self.LaC.update(CC.latActive, CS, self.VM, lp,
                                                        self.steer_limited_by_controls, self.desired_curvature,
                                                        CC, curvature_limited,
-                                                       model_data=self.sm['modelV2'])
+                                                       model_data=self.sm['modelV2'],
+                                                       active_lane_line=self.lanefull_mode_enabled)
     actuators.torque = float(steer)
     actuators.steeringAngleDeg = float(steeringAngleDeg)
     # Ensure no NaNs/Infs
