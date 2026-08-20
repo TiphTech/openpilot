@@ -1048,6 +1048,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlEnd", tr("SpeedCamDecelEnd(6s)"), tr("Sets the deceleration completion point. A larger value completes deceleration farther away from the camera."), 3, 20, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlAfterDist", tr("SpeedCamAfterDistance(50m)"), tr("Keeps the camera speed limit for this distance after passing the camera. 0 releases it immediately."), 0, 250, 10));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", tr("NaviSpeedControlMode(2)"), tr("0:No slowdown, 1: speed camera, 2: + accident prevention bump, 3: + mobile camera"), 0, 3, 1));
+  speedToggles->addItem(new CValueControl("SpeedCameraBeep", tr("Speed camera warning beep"), tr("One short beep at 200m, independent of other sound settings"), 0, 1, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedDecelRate", tr("SpeedCamDecelRatex0.01m/s^2(80)"), tr("Lower number, slows down from a greater distance"), 10, 200, 10));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedSafetyFactor", tr("SpeedCamSafetyFactor(105%)"), "", 80, 120, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpTime", tr("SpeedBumpTimeDistance(1s)"), "", 1, 50, 1));

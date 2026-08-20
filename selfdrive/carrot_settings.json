@@ -2176,6 +2176,22 @@
     },
     {
       "group": "감속제어",
+      "name": "SpeedCameraBeep",
+      "title": "속도카메라 접근 알림음(1)",
+      "descr": "200m 전에 짧은 알림음 1회",
+      "egroup": "SPEED",
+      "etitle": "Speed camera warning beep(1)",
+      "edescr": "One short beep at approximately 200m, independent of other sound settings.",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "unit": 1,
+      "cgroup": "速度控制",
+      "ctitle": "测速摄像头提示音(1)",
+      "cdescr": "在约200米处播放一次短提示音，与其他声音设置独立。"
+    },
+    {
+      "group": "감속제어",
       "name": "AutoRoadSpeedLimitOffset",
       "title": "도로제한속도맞춤(-1)",
       "descr": "도로제한속도 + 설정값\n -1: 안함,",

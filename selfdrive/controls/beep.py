@@ -31,8 +31,8 @@ class Beepd:
                    stdout=subprocess.DEVNULL,
                    encoding='utf8')
 
-  def _beep(self, on):
-    if self.params.get_int("SoundVolumeAdjust") <= 5:
+  def _beep(self, on, force=False):
+    if not force and self.params.get_int("SoundVolumeAdjust") <= 5:
       on = False
     val = "1" if on else "0"
     subprocess.run(f"echo \"{val}\" | sudo tee /sys/class/gpio/gpio42/value",
@@ -80,6 +80,12 @@ class Beepd:
     time.sleep(0.04)
     self._beep(False)
 
+  def speed_camera(self):
+    # The dedicated radar warning is intentionally much shorter than normal beeps.
+    self._beep(True, force=True)
+    time.sleep(0.012)
+    self._beep(False, force=True)
+
   def dispatch_beep(self, func):
     threading.Thread(target=func, daemon=True).start()
 
@@ -99,7 +105,10 @@ class Beepd:
         self.dispatch_beep(self.dong)
       elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
-        self.dispatch_beep(self.beep)
+        if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
+          self.dispatch_beep(self.speed_camera)
+        else:
+          self.dispatch_beep(self.beep)
 
   def get_audible_alert(self, sm):
     if sm.updated['selfdriveState']:

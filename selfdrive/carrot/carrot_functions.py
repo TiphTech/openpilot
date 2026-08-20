@@ -137,6 +137,8 @@ class CarrotPlanner:
     self.xDistToTurn = 0
     self.atcType = ""
     self.atc_active = False
+    self.speed_camera_beep_key = None
+    self.speed_camera_beep_armed = True
     self.tFollowSpeedFactor = 0.0 # 고속 주행 시 추가 차간 거리 가중치
 
     self._stop_x_rl = None
@@ -489,6 +491,21 @@ class CarrotPlanner:
 
     v_cruise_kph = self.cruise_eco_control(v_ego_cluster_kph, v_cruise_kph)
     v_cruise_kph, atc_active = self._update_carrot_man(sm, v_ego_kph, v_cruise_kph)
+
+    # One short, independent warning when approaching a speed-control point.
+    if sm.alive['carrotMan']:
+      carrot_man = sm['carrotMan']
+      speed_camera_key = (carrot_man.xSpdType, carrot_man.xSpdLimit) \
+        if carrot_man.xSpdType >= 0 and carrot_man.xSpdType != 22 and carrot_man.xSpdLimit > 0 else None
+      if speed_camera_key != self.speed_camera_beep_key:
+        self.speed_camera_beep_key = speed_camera_key
+        self.speed_camera_beep_armed = True
+      if speed_camera_key is None:
+        self.speed_camera_beep_armed = True
+      elif self.speed_camera_beep_armed and 0 < carrot_man.xSpdDist <= 200:
+        if self.params.get_int("SpeedCameraBeep") > 0:
+          self.events.add(EventName.audio1)
+        self.speed_camera_beep_armed = False
     
     #if atc_active and not self.atc_active and self.xState not in [XState.e2eStop, XState.e2eStopped, XState.lead]:
     #  if self.atcType in ["turn left", "turn right", "atc left", "atc right"]:
