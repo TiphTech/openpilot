@@ -18,6 +18,7 @@ SAMPLE_RATE = 48000
 SAMPLE_BUFFER = 4096 # (approx 100ms)
 MAX_VOLUME = 1.0
 MIN_VOLUME = 0.1
+SPEED_CAMERA_VOLUME = 0.16
 SELFDRIVE_STATE_TIMEOUT = 5 # 5 seconds
 FILTER_DT = 1. / (micd.SAMPLE_RATE / micd.FFT_SAMPLES)
 
@@ -175,7 +176,10 @@ class Soundd:
         written_frames += frames_to_write
         self.current_sound_frame += frames_to_write
 
-    return ret * self.current_volume
+    # The radar warning remains audible even when normal alerts are muted, but
+    # is deliberately kept much quieter than the regular audio alerts.
+    volume = SPEED_CAMERA_VOLUME if self.current_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0 else self.current_volume
+    return ret * volume
 
   def callback(self, data_out: np.ndarray, frames: int, time, status) -> None:
     if status:

@@ -103,12 +103,9 @@ class Beepd:
         self.dispatch_beep(self.ding)
       elif new_alert in [AudibleAlert.stopStop, AudibleAlert.stopping, AudibleAlert.autoHold, AudibleAlert.engage2, AudibleAlert.disengage2, AudibleAlert.speedDown, AudibleAlert.audioTurn, AudibleAlert.reverseGear]:
         self.dispatch_beep(self.dong)
-      elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
+      elif new_alert in [AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
-        if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
-          self.dispatch_beep(self.speed_camera)
-        else:
-          self.dispatch_beep(self.beep)
+        self.dispatch_beep(self.beep)
 
   def get_audible_alert(self, sm):
     if sm.updated['selfdriveState']:
