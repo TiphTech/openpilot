@@ -218,8 +218,8 @@ class VCruiseCarrot:
     self._pending_pcm_set_speed_kph = 0.0
     self._road_limit_ramp_target_kph = 0.0
     self._road_limit_ramp_last_frame = -10000
-    self._road_limit_ramp_step_kph = 2.0
-    self._road_limit_ramp_interval_frames = int(0.2 / 0.01)
+    self._road_limit_ramp_step_kph = 1.0
+    self._road_limit_ramp_interval_frames = int(0.3 / 0.01)
 
     self.carrot_cmd_index_last = 0
     self.carrot_cmd_index = 0
