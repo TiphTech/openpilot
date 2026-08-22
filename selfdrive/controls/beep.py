@@ -81,10 +81,13 @@ class Beepd:
     self._beep(False)
 
   def speed_camera(self):
-    # The dedicated radar warning is intentionally much shorter than normal beeps.
-    self._beep(True, force=True)
-    time.sleep(0.06)
-    self._beep(False, force=True)
+    # Three short pulses make the radar warning easier to hear over road noise.
+    for index in range(3):
+      self._beep(True, force=True)
+      time.sleep(0.06)
+      self._beep(False, force=True)
+      if index < 2:
+        time.sleep(0.04)
 
   def dispatch_beep(self, func):
     threading.Thread(target=func, daemon=True).start()
