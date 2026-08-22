@@ -83,7 +83,7 @@ class Beepd:
   def speed_camera(self):
     # The dedicated radar warning is intentionally much shorter than normal beeps.
     self._beep(True, force=True)
-    time.sleep(0.04)
+    time.sleep(0.06)
     self._beep(False, force=True)
 
   def dispatch_beep(self, func):
