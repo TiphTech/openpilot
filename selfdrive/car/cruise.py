@@ -218,7 +218,7 @@ class VCruiseCarrot:
     self._pending_pcm_set_speed_kph = 0.0
     self._road_limit_ramp_target_kph = 0.0
     self._road_limit_ramp_last_frame = -10000
-    self._road_limit_ramp_step_kph = 1.0
+    self._road_limit_ramp_step_kph = 2.0
     self._road_limit_ramp_interval_frames = int(0.3 / 0.01)
 
     self.carrot_cmd_index_last = 0
@@ -366,7 +366,7 @@ class VCruiseCarrot:
     self.v_ego_kph_set = int(CS.vEgoCluster * CV.MS_TO_KPH + 0.5)
     self._activate_cruise = 0
     self._prepare_brake_gas(CS, CC)
-    if CS.brakePressed or CS.gasPressed:
+    if CS.brakePressed:
       self._cancel_road_limit_ramp()
     if CC.enabled:
       self._cruise_ready = False

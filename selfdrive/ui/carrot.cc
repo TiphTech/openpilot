@@ -48,7 +48,7 @@
 #define COLOR_GREY nvgRGBA(191, 191, 191, 1)
 #define COLOR_GREY_ALPHA(x) nvgRGBA(191, 191, 191, x)
 
-#define BOLD "KaiGenGothicKR-Bold"//"Inter-Bold"//"sans-bold"
+#define BOLD "Inter-Bold"
 
 
 constexpr float MIN_DRAW_DISTANCE = 10.0;
@@ -2301,7 +2301,6 @@ public:
         }
 #endif
     }
-    char    cruise_speed_last[32] = "";
     char    driving_mode_str_last[32] = "";
     int     gap_last = 0;
     char    gear_str_last[32] = "";
@@ -2413,11 +2412,6 @@ public:
         int cruise_y = by + 15;
         if(longActive) snprintf(cruise_speed, sizeof(cruise_speed), "%d", (int)std::lround((s->scene.is_metric) ? v_cruise : v_cruise * KM_TO_MILE));
 		    else sprintf(cruise_speed, "--");
-        if (strcmp(cruise_speed_last, cruise_speed) != 0) {
-			    strcpy(cruise_speed_last, cruise_speed);
-          if(strcmp(cruise_speed, "--"))
-            ui_draw_text_a(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD);
-		    }
         ui_draw_text(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 
         // draw apply speed
@@ -3114,6 +3108,7 @@ void ui_draw_border(UIState* s, int w, int h, QColor bg, QColor bg_long) {
         s->vg_border = nvgCreate(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
         std::pair<const char*, const char*> fonts[] = {
             {"KaiGenGothicKR-Bold", "../assets/addon/font/KaiGenGothicKR-Bold.ttf"},
+            {"Inter-Bold", "../assets/fonts/Inter-Bold.ttf"},
         };
         for (auto [name, file] : fonts) {
             int font_id = nvgCreateFont(s->vg_border, name, file);
@@ -3160,7 +3155,7 @@ void ui_nvg_init(UIState *s) {
       //{"KaiGenGothicKR-Normal", "../assets/addon/font/KaiGenGothicKR-Normal.ttf"},
       //{"KaiGenGothicKR-Medium", "../assets/addon/font/KaiGenGothicKR-Medium.ttf"},
       {"KaiGenGothicKR-Bold", "../assets/addon/font/KaiGenGothicKR-Bold.ttf"},
-      //{"Inter-Bold", "../assets/fonts/Inter-Bold.ttf"},
+      {"Inter-Bold", "../assets/fonts/Inter-Bold.ttf"},
   };
   for (auto [name, file] : fonts) {
     int font_id = nvgCreateFont(s->vg, name, file);
