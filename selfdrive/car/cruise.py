@@ -181,6 +181,8 @@ class VCruiseCarrot:
     self._gas_pressed_value = 0
     self._gas_tok_timer = int(0.4 / 0.01) # 0.4 sec
     self._gas_tok = False
+    self._gas_override_speed_kph = 0.0
+    self._gas_override_until_frame = 0
     self._brake_pressed_count = 0
     self._soft_hold_count = 0
     self._soft_hold_active = 0
@@ -655,7 +657,21 @@ class VCruiseCarrot:
         self._cruise_cancel_state = False
 
     if not long_pressed:
-      if button_type == ButtonType.accelCruise:
+      gas_override = (
+        button_type in [ButtonType.accelCruise, ButtonType.decelCruise]
+        and self._gas_override_speed_kph >= self._cruise_speed_min
+        and self.frame <= self._gas_override_until_frame
+      )
+
+      if gas_override:
+        v_cruise_kph = self._gas_override_speed_kph
+        self._store_resume_cruise_speed(v_cruise_kph)
+        self._v_cruise_kph_at_brake = 0
+        self._gas_override_speed_kph = 0.0
+        self._gas_override_until_frame = 0
+        self._add_log(f"Cruise speed memorized from gas {v_cruise_kph:.0f}")
+
+      elif button_type == ButtonType.accelCruise:
         self._lat_enabled = True
         self._pause_auto_speed_up = False
         if self._soft_hold_active > 0:
@@ -999,6 +1015,8 @@ class VCruiseCarrot:
   def _prepare_brake_gas(self, CS, CC):
     if CS.gasPressed:
       self._paddle_decel_active = False
+      self._gas_override_speed_kph = self.v_ego_kph_set
+      self._gas_override_until_frame = self.frame + int(3.0 / 0.01)
       self._gas_pressed_count = max(1, self._gas_pressed_count + 1)
       self._gas_pressed_count_last = self._gas_pressed_count
       self._gas_pressed_value = max(CS.gas, self._gas_pressed_value) if self._gas_pressed_count > 1 else CS.gas
@@ -1014,6 +1032,8 @@ class VCruiseCarrot:
         self._gas_tok = False
 
     if CS.brakePressed:
+      self._gas_override_speed_kph = 0.0
+      self._gas_override_until_frame = 0
       self._cruise_ready = False
       self._paddle_decel_active = False
       self._brake_pressed_count = max(1, self._brake_pressed_count + 1)
