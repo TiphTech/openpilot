@@ -493,19 +493,27 @@ class CarrotPlanner:
     v_cruise_kph, atc_active = self._update_carrot_man(sm, v_ego_kph, v_cruise_kph)
 
     # One short, independent warning when approaching a speed-control point.
+    # Prefer Carrot's camera data, but fall back to the carState camera data
+    # used by the onroad icon when Carrot's distance is unavailable.
+    speed_camera = None
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
-      speed_camera_key = (carrot_man.xSpdType, carrot_man.xSpdLimit) \
-        if carrot_man.xSpdType >= 0 and carrot_man.xSpdType != 22 and carrot_man.xSpdLimit > 0 else None
-      if speed_camera_key != self.speed_camera_beep_key:
-        self.speed_camera_beep_key = speed_camera_key
-        self.speed_camera_beep_armed = True
-      if speed_camera_key is None:
-        self.speed_camera_beep_armed = True
-      elif self.speed_camera_beep_armed and 0 < carrot_man.xSpdDist <= 200:
-        if self.params.get_int("SpeedCameraBeep") > 0:
-          self.events.add(EventName.audio1)
-        self.speed_camera_beep_armed = False
+      if carrot_man.xSpdType >= 0 and carrot_man.xSpdType != 22 and carrot_man.xSpdLimit > 0:
+        speed_camera = (carrot_man.xSpdType, carrot_man.xSpdLimit, carrot_man.xSpdDist)
+
+    if speed_camera is None and carstate.speedLimit > 0 and carstate.speedLimitDistance > 0:
+      speed_camera = ("carState", int(carstate.speedLimit), int(carstate.speedLimitDistance))
+
+    speed_camera_key = speed_camera[:2] if speed_camera is not None else None
+    if speed_camera_key != self.speed_camera_beep_key:
+      self.speed_camera_beep_key = speed_camera_key
+      self.speed_camera_beep_armed = True
+    if speed_camera is None:
+      self.speed_camera_beep_armed = True
+    elif self.speed_camera_beep_armed and 0 < speed_camera[2] <= 200:
+      if self.params.get_int("SpeedCameraBeep") > 0:
+        self.events.add(EventName.audio1)
+      self.speed_camera_beep_armed = False
     
     #if atc_active and not self.atc_active and self.xState not in [XState.e2eStop, XState.e2eStopped, XState.lead]:
     #  if self.atcType in ["turn left", "turn right", "atc left", "atc right"]:
