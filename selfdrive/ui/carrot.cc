@@ -2027,6 +2027,19 @@ public:
             xSpdLimit = carrot_man.getXSpdLimit();
             xSpdDist = carrot_man.getXSpdDist();
             xSignType = carrot_man.getXSpdType();
+            const bool camera_type = xSignType >= 0 && xSignType != 22;
+            const bool camera_zone_active = camera_type && xSpdLimit > 0 &&
+                                            (xSpdDist > 0 || xSignType == 100 || xSignType == 101);
+            const bool camera_approach = camera_zone_active && xSpdDist > 0 && xSpdDist <= 200;
+            if (!speed_camera_zone_initialized || (!speed_camera_zone_was_active && camera_approach)) {
+              speed_camera_flash_timer = 20;
+              speed_camera_flash_green = false;
+            } else if (speed_camera_zone_initialized && speed_camera_zone_was_active && !camera_zone_active) {
+              speed_camera_flash_timer = 20;
+              speed_camera_flash_green = true;
+            }
+            speed_camera_zone_initialized = true;
+            speed_camera_zone_was_active = camera_zone_active;
             nGoPosDist = carrot_man.getNGoPosDist();
             QString atcType = QString::fromStdString(carrot_man.getAtcType());
             trafficState_carrot = carrot_man.getTrafficState();
@@ -2307,6 +2320,10 @@ public:
     int     blink_timer = 0;
     int     disp_timer = 0;
     int     speed_camera_icon_hold_timer = 0;
+    int     speed_camera_flash_timer = 0;
+    bool    speed_camera_flash_green = false;
+    bool    speed_camera_zone_initialized = false;
+    bool    speed_camera_zone_was_active = false;
     float cpuTemp = 0.0f;
     float cpuUsage = 0.0f;
     int   memoryUsage = 0;
@@ -2361,6 +2378,13 @@ public:
         if (deviceStateCritical) show_device_state = 1;
         blink_timer = (blink_timer + 1) % 16;
         disp_timer = (disp_timer + 1) % 64; 
+        if (speed_camera_flash_timer > 0) {
+            nvgBeginPath(s->vg);
+            nvgRect(s->vg, 0, 0, s->fb_w, s->fb_h);
+            nvgFillColor(s->vg, speed_camera_flash_green ? COLOR_GREEN_ALPHA(75) : COLOR_RED_ALPHA(75));
+            nvgFill(s->vg);
+            speed_camera_flash_timer--;
+        }
         nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
 
         int x = 140;// 120;

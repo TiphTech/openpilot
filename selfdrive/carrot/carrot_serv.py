@@ -911,7 +911,10 @@ class CarrotServ:
     if self.active_carrot <= 1 or self.active_kisa_count > 0:
       self.update_nav_instruction(sm)
 
-    if self.xSpdType < 0 or (self.xSpdType not in [100,101] and self.xSpdDist <= 0) or (self.xSpdType in [100,101] and self.xSpdDist < -self.autoNaviSpeedCtrlAfterDist):
+    camera_zone_end_dist = max(0.0, self.autoNaviSpeedCtrlAfterDist)
+    if self.xSpdType < 0 or \
+       (self.xSpdType == 22 and self.xSpdDist <= 0) or \
+       (self.xSpdType != 22 and self.xSpdDist < -camera_zone_end_dist):
       self.xSpdType = -1
       self.xSpdDist = self.xSpdLimit = 0
     if self.xTurnInfo < 0 or self.xDistToTurn < -50:
@@ -924,7 +927,9 @@ class CarrotServ:
     sdi_speed = 250
     hda_active = False
     ### 과속카메라, 사고방지턱
-    if (self.xSpdDist > 0 or self.xSpdType in [100, 101]) and self.active_carrot > 0:
+    camera_zone_active = self.xSpdType >= 0 and self.xSpdType != 22 and self.xSpdDist >= -camera_zone_end_dist
+    bump_zone_active = self.xSpdType == 22 and self.xSpdDist > 0
+    if (camera_zone_active or bump_zone_active) and self.active_carrot > 0:
       safe_sec = self.autoNaviSpeedBumpTime if self.xSpdType == 22 else self.autoNaviSpeedCtrlEnd
       decel = self.autoNaviSpeedDecelRate
       sdi_speed = min(sdi_speed, self.calculate_current_speed(self.xSpdDist, self.xSpdLimit, safe_sec, decel))

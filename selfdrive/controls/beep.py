@@ -81,12 +81,12 @@ class Beepd:
     self._beep(False)
 
   def speed_camera(self):
-    # Three short pulses make the radar warning easier to hear over road noise.
-    for index in range(3):
+    # Two short pulses mark the approach and end of a speed-camera zone.
+    for index in range(2):
       self._beep(True, force=True)
       time.sleep(0.06)
       self._beep(False, force=True)
-      if index < 2:
+      if index < 1:
         time.sleep(0.04)
 
   def dispatch_beep(self, func):
@@ -108,7 +108,7 @@ class Beepd:
         self.dispatch_beep(self.dong)
       elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
-        if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
+        if new_alert in [AudibleAlert.audio1, AudibleAlert.audio2] and self.params.get_int("SpeedCameraBeep") > 0:
           self.dispatch_beep(self.speed_camera)
         else:
           self.dispatch_beep(self.beep)

@@ -139,6 +139,7 @@ class CarrotPlanner:
     self.atc_active = False
     self.speed_camera_beep_key = None
     self.speed_camera_beep_armed = True
+    self.speed_camera_zone_active = False
     self.tFollowSpeedFactor = 0.0 # 고속 주행 시 추가 차간 거리 가중치
 
     self._stop_x_rl = None
@@ -496,10 +497,12 @@ class CarrotPlanner:
     # Prefer Carrot's camera data, but fall back to the carState camera data
     # used by the onroad icon when Carrot's distance is unavailable.
     speed_camera = None
+    carrot_camera_active = False
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
       if carrot_man.xSpdType >= 0 and carrot_man.xSpdType != 22 and carrot_man.xSpdLimit > 0:
         speed_camera = (carrot_man.xSpdType, carrot_man.xSpdLimit, carrot_man.xSpdDist)
+        carrot_camera_active = carrot_man.xSpdDist > 0 or carrot_man.xSpdType in (100, 101)
 
     if speed_camera is None and carstate.speedLimit > 0 and carstate.speedLimitDistance > 0:
       speed_camera = ("carState", int(carstate.speedLimit), int(carstate.speedLimitDistance))
@@ -514,6 +517,11 @@ class CarrotPlanner:
       if self.params.get_int("SpeedCameraBeep") > 0:
         self.events.add(EventName.audio1)
       self.speed_camera_beep_armed = False
+
+    if self.speed_camera_zone_active and not carrot_camera_active:
+      if self.params.get_int("SpeedCameraBeep") > 0:
+        self.events.add(EventName.audio2)
+    self.speed_camera_zone_active = carrot_camera_active
     
     #if atc_active and not self.atc_active and self.xState not in [XState.e2eStop, XState.e2eStopped, XState.lead]:
     #  if self.atcType in ["turn left", "turn right", "atc left", "atc right"]:
