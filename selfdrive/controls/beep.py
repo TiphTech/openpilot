@@ -81,13 +81,19 @@ class Beepd:
     self._beep(False)
 
   def speed_camera(self):
-    # Two short pulses mark the approach and end of a speed-camera zone.
+    # Two short pulses mark the approach to a speed-camera zone.
     for index in range(2):
       self._beep(True, force=True)
       time.sleep(0.06)
       self._beep(False, force=True)
       if index < 1:
         time.sleep(0.04)
+
+  def speed_camera_end(self):
+    # One short pulse marks the end of a speed-camera zone.
+    self._beep(True, force=True)
+    time.sleep(0.06)
+    self._beep(False, force=True)
 
   def dispatch_beep(self, func):
     threading.Thread(target=func, daemon=True).start()
@@ -108,8 +114,10 @@ class Beepd:
         self.dispatch_beep(self.dong)
       elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
-        if new_alert in [AudibleAlert.audio1, AudibleAlert.audio2] and self.params.get_int("SpeedCameraBeep") > 0:
+        if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
           self.dispatch_beep(self.speed_camera)
+        elif new_alert == AudibleAlert.audio2 and self.params.get_int("SpeedCameraBeep") > 0:
+          self.dispatch_beep(self.speed_camera_end)
         else:
           self.dispatch_beep(self.beep)
 
