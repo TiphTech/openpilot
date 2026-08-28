@@ -468,7 +468,7 @@ class CarState(CarStateBase):
 
   def update_speed_limit(self, ret, speed_limit_cam):
     self.totalDistance += ret.vEgo * DT_CTRL
-    if ret.speedLimit > 0 and not ret.gasPressed and speed_limit_cam:
+    if ret.speedLimit > 0 and speed_limit_cam:
       if self.speedLimitDistance <= self.totalDistance:
         self.speedLimitDistance = self.totalDistance + ret.speedLimit * 6
       self.speedLimitDistance = max(self.totalDistance + 1, self.speedLimitDistance)

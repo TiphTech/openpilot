@@ -181,8 +181,6 @@ class VCruiseCarrot:
     self._gas_pressed_value = 0
     self._gas_tok_timer = int(0.4 / 0.01) # 0.4 sec
     self._gas_tok = False
-    self._gas_override_speed_kph = 0.0
-    self._gas_override_until_frame = 0
     self._brake_pressed_count = 0
     self._soft_hold_count = 0
     self._soft_hold_active = 0
@@ -192,8 +190,15 @@ class VCruiseCarrot:
     self._activate_cruise = 0
     self._lat_enabled = self.params.get_int("AutoEngage") > 0
     self._v_cruise_kph_at_brake = 0
-    self._v_cruise_kph_resume = 0
+    try:
+      self._v_cruise_kph_resume = self.params.get_int("LastCruiseSpeed")
+    except Exception:
+      self._v_cruise_kph_resume = 0
+    self._last_persisted_cruise_speed = int(self._v_cruise_kph_resume)
     self.cruise_state_available_last = False
+
+    self._speed_camera_zone_active = False
+    self._speed_camera_saved_cruise_kph = 0.0
 
     self._paddle_decel_active = False
     self.carrot_cruise_active = False
@@ -359,8 +364,8 @@ class VCruiseCarrot:
 
     self.v_cruise_kph_last = self.v_cruise_kph
     self.is_metric = is_metric
-    if CC.enabled and self._cruise_speed_min <= self.v_cruise_kph <= self._cruise_speed_max:
-      self._v_cruise_kph_resume = self.v_cruise_kph
+    if CC.enabled and not self._speed_camera_zone_active and self._cruise_speed_min <= self.v_cruise_kph <= self._cruise_speed_max:
+      self._store_resume_cruise_speed(self.v_cruise_kph)
 
     self._cancel_timer = max(0, self._cancel_timer - 1)
 
@@ -509,7 +514,7 @@ class VCruiseCarrot:
     return button_kph, button_type, self.long_pressed
 
   def _displayed_road_limit_info(self, CS):
-    camera_limit = self.xSpdLimit > 0 and self.xSpdType >= 0 and self.xSpdType != 22
+    camera_limit = self.xSpdLimit > 0 and self.xSpdType >= 0 and self.xSpdType != 22 and self.xSpdDist <= 200
     if camera_limit:
       return float(self.xSpdLimit), True
 
@@ -533,26 +538,18 @@ class VCruiseCarrot:
     return int(road_limit_kph + 0.5)
 
   def _camera_zone_limit_info(self, CS):
-    if self.autoNaviSpeedCtrlMode <= 0:
-      return 0.0, False
+    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
+    if stock_limit_kph >= 30:
+      return stock_limit_kph, False
 
     carrot_camera_zone = (
       self.xSpdLimit >= 30 and
       self.xSpdType >= 0 and
       self.xSpdType != 22 and
-      (
-        self.xSpdDist > 0 or
-        self.xSpdType in (4, 100, 101) or
-        self.activeCarrot in (3, 4, 6)
-      )
+      self.xSpdDist <= 200
     )
     if carrot_camera_zone:
       return float(self.xSpdLimit), True
-
-    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
-    stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
-    if stock_limit_kph >= 30 and stock_limit_distance > 0:
-      return stock_limit_kph, False
 
     return 0.0, False
 
@@ -575,7 +572,7 @@ class VCruiseCarrot:
       target_kph = target_kph / v_clu_ratio
     return float(np.clip(target_kph, self._cruise_speed_min, self._cruise_speed_max))
 
-  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None, limit_is_adjusted=False, raw_road_limit=False, smooth=False):
+  def _apply_road_limit_set_speed(self, CS, v_cruise_kph, log_prefix, road_limit_kph=None, limit_is_adjusted=False, raw_road_limit=False, smooth=False, store_resume=True):
     if road_limit_kph is None:
       road_limit_kph, limit_is_adjusted = self._displayed_road_limit_info(CS)
     if road_limit_kph < 30:
@@ -596,7 +593,8 @@ class VCruiseCarrot:
       self._cancel_road_limit_ramp()
       v_cruise_kph = target_kph
     self._queue_pcm_set_speed(v_cruise_kph)
-    self._store_resume_cruise_speed(v_cruise_kph)
+    if store_resume:
+      self._store_resume_cruise_speed(v_cruise_kph)
     self.road_limit_kph = road_limit_kph
     self._last_auto_applied_road_limit = road_limit_kph
     self._last_auto_apply_frame = self.frame
@@ -657,19 +655,42 @@ class VCruiseCarrot:
         self._cruise_cancel_state = False
 
     if not long_pressed:
-      gas_override = (
-        button_type in [ButtonType.accelCruise, ButtonType.decelCruise]
-        and self._gas_override_speed_kph >= self._cruise_speed_min
-        and self.frame <= self._gas_override_until_frame
-      )
+      short_speed_button = button_type in [ButtonType.accelCruise, ButtonType.decelCruise]
+      cruise_active = bool(CS.cruiseState.enabled)
 
-      if gas_override:
-        v_cruise_kph = self._gas_override_speed_kph
-        self._store_resume_cruise_speed(v_cruise_kph)
+      if short_speed_button:
+        self._lat_enabled = True
+        self._paddle_decel_active = False
+        self.carrot_cruise_active = False
+
+        if CS.gasPressed:
+          if button_type == ButtonType.accelCruise:
+            v_cruise_kph = self._resume_cruise_speed()
+            self._add_log(f"Cruise resume while gas pressed {v_cruise_kph:.0f}")
+          else:
+            v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
+            self._store_resume_cruise_speed(v_cruise_kph)
+            self._add_log(f"Cruise set current speed while gas pressed {v_cruise_kph:.0f}")
+        elif not cruise_active:
+          if button_type == ButtonType.accelCruise:
+            v_cruise_kph = self._resume_cruise_speed()
+            self._add_log(f"Cruise activate previous speed {v_cruise_kph:.0f}")
+          else:
+            v_cruise_kph = max(self.v_ego_kph_set, self._cruise_speed_min)
+            self._store_resume_cruise_speed(v_cruise_kph)
+            self._add_log(f"Cruise activate current speed {v_cruise_kph:.0f}")
+        else:
+          unit = 1.0 if self.is_metric else CV.MPH_TO_KPH
+          if button_type == ButtonType.accelCruise:
+            v_cruise_kph = math.ceil((v_cruise_kph + 0.01) / unit) * unit
+          else:
+            v_cruise_kph = math.floor((v_cruise_kph - 0.01) / unit) * unit
+          self._store_resume_cruise_speed(v_cruise_kph)
+          self._add_log(f"Cruise adjust {v_cruise_kph:.0f}")
+
+        self._pause_auto_speed_up = button_type == ButtonType.decelCruise
+        self._queue_pcm_set_speed(v_cruise_kph)
         self._v_cruise_kph_at_brake = 0
-        self._gas_override_speed_kph = 0.0
-        self._gas_override_until_frame = 0
-        self._add_log(f"Cruise speed memorized from gas {v_cruise_kph:.0f}")
 
       elif button_type == ButtonType.accelCruise:
         self._lat_enabled = True
@@ -815,6 +836,13 @@ class VCruiseCarrot:
   def _store_resume_cruise_speed(self, v_cruise_kph):
     if self._cruise_speed_min <= v_cruise_kph <= self._cruise_speed_max:
       self._v_cruise_kph_resume = v_cruise_kph
+      persisted_speed = int(round(v_cruise_kph))
+      if persisted_speed != self._last_persisted_cruise_speed:
+        self._last_persisted_cruise_speed = persisted_speed
+        try:
+          self.params.put_int_nonblocking("LastCruiseSpeed", persisted_speed)
+        except Exception:
+          pass
 
   def _resume_cruise_speed(self):
     resume_speed = self._v_cruise_kph_at_brake if self._v_cruise_kph_at_brake > 0 else self._v_cruise_kph_resume
@@ -825,10 +853,18 @@ class VCruiseCarrot:
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
 
   def _auto_speed_up(self, CS, v_cruise_kph, force=False):
-    if not CS.cruiseState.enabled:
-      self._cancel_road_limit_ramp()
     camera_zone_kph, camera_limit_is_adjusted = self._camera_zone_limit_info(CS)
-    if camera_zone_kph >= 30 and self._hyundai_camera_scc == 2 and CS.cruiseState.enabled:
+    camera_zone_active = camera_zone_kph >= 30
+
+    if camera_zone_active and not self._speed_camera_zone_active:
+      self._speed_camera_zone_active = True
+      self._speed_camera_saved_cruise_kph = 0.0
+      self._add_log("Speed camera zone entered")
+
+    if camera_zone_active and self._hyundai_camera_scc == 2 and CS.cruiseState.enabled:
+      if self._speed_camera_saved_cruise_kph < self._cruise_speed_min:
+        self._speed_camera_saved_cruise_kph = float(np.clip(v_cruise_kph, self._cruise_speed_min, self._cruise_speed_max))
+        self._store_resume_cruise_speed(self._speed_camera_saved_cruise_kph)
       self._cancel_road_limit_ramp()
       v_cruise_kph = self._apply_road_limit_set_speed(
         CS,
@@ -837,12 +873,28 @@ class VCruiseCarrot:
         road_limit_kph=camera_zone_kph,
         limit_is_adjusted=camera_limit_is_adjusted,
         raw_road_limit=True,
+        store_resume=False,
       )
       self.road_limit_kph = camera_zone_kph
       self.nRoadLimitSpeed_last = self.nRoadLimitSpeed
       self._displayed_road_limit_kph_last = camera_zone_kph
       self._displayed_road_limit_value_last = int(camera_zone_kph + 0.5)
       return v_cruise_kph
+
+    if self._speed_camera_zone_active and not camera_zone_active:
+      self._speed_camera_zone_active = False
+      restore_kph = self._speed_camera_saved_cruise_kph
+      self._speed_camera_saved_cruise_kph = 0.0
+      self._cancel_road_limit_ramp()
+      if restore_kph >= self._cruise_speed_min and CS.cruiseState.enabled:
+        v_cruise_kph = restore_kph
+        self._queue_pcm_set_speed(v_cruise_kph)
+        self._store_resume_cruise_speed(v_cruise_kph)
+        self._add_log(f"Speed camera zone ended, restored {v_cruise_kph:.0f}")
+        return v_cruise_kph
+
+    if not CS.cruiseState.enabled:
+      self._cancel_road_limit_ramp()
 
     road_limit_kph, road_limit_is_adjusted = self._displayed_road_limit_info(CS)
     road_limit_value = self._displayed_road_limit_value(CS)
@@ -1015,8 +1067,6 @@ class VCruiseCarrot:
   def _prepare_brake_gas(self, CS, CC):
     if CS.gasPressed:
       self._paddle_decel_active = False
-      self._gas_override_speed_kph = self.v_ego_kph_set
-      self._gas_override_until_frame = self.frame + int(3.0 / 0.01)
       self._gas_pressed_count = max(1, self._gas_pressed_count + 1)
       self._gas_pressed_count_last = self._gas_pressed_count
       self._gas_pressed_value = max(CS.gas, self._gas_pressed_value) if self._gas_pressed_count > 1 else CS.gas
@@ -1032,8 +1082,6 @@ class VCruiseCarrot:
         self._gas_tok = False
 
     if CS.brakePressed:
-      self._gas_override_speed_kph = 0.0
-      self._gas_override_until_frame = 0
       self._cruise_ready = False
       self._paddle_decel_active = False
       self._brake_pressed_count = max(1, self._brake_pressed_count + 1)

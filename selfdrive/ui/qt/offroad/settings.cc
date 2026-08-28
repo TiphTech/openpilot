@@ -1046,9 +1046,9 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   speedToggles->addItem(new CValueControl("AutoRoadSpeedLimitOffset", tr("RoadSpeedLimitOffset(-1)"), tr("-1:NotUsed,RoadLimitSpeed+Offset"), -1, 100, 1));
   speedToggles->addItem(new ParamControl("AutoRoadSpeedAdjust", tr("CRUISE: Auto update set speed from road limit"), tr("When enabled, tapping the onroad cruise icon turns automatic set-speed update on. Cruise set speed is updated automatically when the detected road speed limit changes, using cluster-compensated speed plus your configured road limit offset."), "", this));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlEnd", tr("SpeedCamDecelEnd(6s)"), tr("Sets the deceleration completion point. A larger value completes deceleration farther away from the camera."), 3, 20, 1));
-  speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlAfterDist", tr("SpeedCamAfterDistance(200m)"), tr("Keeps the camera speed limit for this distance after passing the camera. 0 releases it immediately."), 0, 250, 10));
+  speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlAfterDist", tr("SpeedCamAfterDistance(50m)"), tr("Keeps the camera speed limit for this distance after passing the camera. 0 releases it immediately."), 0, 250, 10));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedCtrlMode", tr("NaviSpeedControlMode(2)"), tr("0:No slowdown, 1: speed camera, 2: + accident prevention bump, 3: + mobile camera"), 0, 3, 1));
-  speedToggles->addItem(new CValueControl("SpeedCameraBeep", tr("Speed camera warning beep"), tr("Two short beeps at approximately 200m before and after the camera zone"), 0, 1, 1));
+  speedToggles->addItem(new CValueControl("SpeedCameraBeep", tr("Speed camera warning beep"), tr("Two beeps on camera-zone entry and one beep on exit"), 0, 1, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedDecelRate", tr("SpeedCamDecelRatex0.01m/s^2(80)"), tr("Lower number, slows down from a greater distance"), 10, 200, 10));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedSafetyFactor", tr("SpeedCamSafetyFactor(105%)"), "", 80, 120, 1));
   speedToggles->addItem(new CValueControl("AutoNaviSpeedBumpTime", tr("SpeedBumpTimeDistance(1s)"), "", 1, 50, 1));

@@ -2010,25 +2010,29 @@ public:
         // Keep radar HUD state usable even when no vehicle services are alive.
         // This is needed for onroad radar warnings on a disconnected device.
         if (carrot_man_alive) {
+            active_carrot = carrot_man.getActiveCarrot();
             xSpdLimit = carrot_man.getXSpdLimit();
             xSpdDist = carrot_man.getXSpdDist();
             xSignType = carrot_man.getXSpdType();
-            const bool camera_type = xSignType >= 0 && xSignType != 22;
-            const bool camera_zone_active = camera_type && xSpdLimit > 0 &&
-                                            (xSpdDist > 0 || xSignType == 100 || xSignType == 101);
-            // Some radar sources jump from a distant value straight to 0 m.
-            // Treat a newly detected camera zone as the approach flash too.
-            const bool camera_approach = camera_zone_active && xSpdDist <= 200;
-            if (!speed_camera_zone_initialized || (!speed_camera_zone_was_active && camera_approach)) {
+        }
+        const bool camera_type = xSignType >= 0 && xSignType != 22;
+        const bool carrot_camera_active = carrot_man_alive && camera_type && xSpdLimit >= 30 && xSpdDist <= 200;
+        const bool stock_camera_active = car_state_alive && car_state.getSpeedLimit() >= 30;
+        speed_camera_warning_active = carrot_camera_active || stock_camera_active;
+        if (!speed_camera_zone_initialized) {
+            if (speed_camera_warning_active) {
               speed_camera_flash_timer = 20;
               speed_camera_flash_green = false;
-            } else if (speed_camera_zone_initialized && speed_camera_zone_was_active && !camera_zone_active) {
-              speed_camera_flash_timer = 20;
-              speed_camera_flash_green = true;
             }
-            speed_camera_zone_initialized = true;
-            speed_camera_zone_was_active = camera_zone_active;
+        } else if (!speed_camera_zone_was_active && speed_camera_warning_active) {
+            speed_camera_flash_timer = 20;
+            speed_camera_flash_green = false;
+        } else if (speed_camera_zone_was_active && !speed_camera_warning_active) {
+            speed_camera_flash_timer = 20;
+            speed_camera_flash_green = true;
         }
+        speed_camera_zone_initialized = true;
+        speed_camera_zone_was_active = speed_camera_warning_active;
 
         if (!cs_alive || !car_control_alive || !car_state_alive || !lp_alive) return false;
         auto selfdrive_state = sm["selfdriveState"].getSelfdriveState();
@@ -2329,9 +2333,9 @@ public:
     char    gear_str_last[32] = "";
     int     blink_timer = 0;
     int     disp_timer = 0;
-    int     speed_camera_icon_hold_timer = 0;
     int     speed_camera_flash_timer = 0;
     bool    speed_camera_flash_green = false;
+    bool    speed_camera_warning_active = false;
     bool    speed_camera_zone_initialized = false;
     bool    speed_camera_zone_was_active = false;
     float cpuTemp = 0.0f;
@@ -2561,30 +2565,12 @@ public:
 
         if (true) {
             int disp_speed = 0;
-            QString apply_source_lower = apply_source.toLower();
-            bool camera_source = apply_source_lower.contains("cam") ||
-                                 apply_source_lower.contains("hda") ||
-                                 apply_source_lower.contains("section") ||
-                                 apply_source_lower.contains("waze") ||
-                                 apply_source_lower.contains("police");
             bool camera_type = xSignType >= 0 && xSignType != 22;
             bool camera_limit = xSpdLimit > 0 && camera_type;
-            bool stock_camera_limit = carState.getSpeedLimit() > 0 && carState.getSpeedLimitDistance() > 0;
-            bool camera_zone_active = (xSpdDist > 0 && xSpdLimit > 0 && camera_type) ||
-                                      active_carrot == 3 || active_carrot == 4 || active_carrot == 6;
-            // Keep radar icon blinking while camera/nav speed control is actually applied.
-            // Some map sources clear apply_source early, so also detect active apply by desired speed < cruise speed.
-            bool nav_speed_applied = (v_cruise > 0.1f) && (apply_speed > 0.1f) && ((v_cruise - apply_speed) > 0.5f);
-            bool speed_camera_ahead = camera_limit || stock_camera_limit || camera_source ||
-                                      nav_speed_applied || camera_zone_active;
-            if (speed_camera_ahead) {
-              speed_camera_icon_hold_timer = 120;  // keep visible for ~2.4s
-            } else if (speed_camera_icon_hold_timer > 0) {
-              speed_camera_icon_hold_timer--;
-            }
-            const bool show_speed_camera_icon = speed_camera_ahead || speed_camera_icon_hold_timer > 0;
+            bool stock_camera_limit = carState.getSpeedLimit() > 0;
+            const bool show_speed_camera_icon = speed_camera_warning_active;
             if (camera_limit || stock_camera_limit) {
-                float camera_speed_limit = camera_limit ? xSpdLimit : carState.getSpeedLimit();
+                float camera_speed_limit = stock_camera_limit ? carState.getSpeedLimit() : xSpdLimit;
                 disp_speed = (int)(camera_speed_limit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
                 disp_speed = nRoadLimitSpeed;
@@ -2612,7 +2598,7 @@ public:
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
             ui_draw_text(s, sign_x, sign_y - 7, QString::number(disp_speed).toStdString().c_str(), 66, COLOR_BLACK, BOLD, 0.0f, 0.0f);
             nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_BOTTOM);
-            if (show_speed_camera_icon && blink_timer > 7) {
+            if (show_speed_camera_icon && (speed_camera_flash_timer > 0 || blink_timer > 7)) {
               int cam_x = sign_x + outer_r + 16;
               int cam_y = sign_y - outer_r;
               ui_draw_image(s, { cam_x, cam_y, sign_size, sign_size }, "ic_speedcam", 1.0f);

@@ -192,7 +192,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoTurnMapChange", {PERSISTENT, INT, "0"}},
 
     {"AutoNaviSpeedCtrlEnd", {PERSISTENT, INT, "7"}},
-    {"AutoNaviSpeedCtrlAfterDist", {PERSISTENT, INT, "200"}},
+    {"AutoNaviSpeedCtrlAfterDist", {PERSISTENT, INT, "50"}},
     {"AutoNaviSpeedCtrlMode", {PERSISTENT, INT, "2"}},
     {"AutoRoadSpeedLimitOffset", {PERSISTENT, INT, "-1"}},
     {"AutoNaviSpeedBumpTime", {PERSISTENT, INT, "1"}},
@@ -218,6 +218,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"CruiseButtonTest3", {PERSISTENT, INT, "1"}},
 
     {"CruiseSpeedUnit", {PERSISTENT, INT, "10"}},
+    {"LastCruiseSpeed", {PERSISTENT, INT, "0"}},
     {"CruiseButtonLongDelay", {PERSISTENT, INT, "40"} },
     {"CruiseSpeedUnitBasic", {PERSISTENT, INT, "1"}},
     {"CruiseSpeed1", {PERSISTENT, INT, "30"}},
