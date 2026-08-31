@@ -31,6 +31,13 @@ GearShifter = structs.CarState.GearShifter
 READY_COUNT_OK = 200
 
 
+def get_canfd_brake_lights(brake_msg, brake_pressed: bool) -> bool:
+  # BRAKE.BRAKE_LIGHT is the vehicle's actual stop-lamp state, including
+  # regenerative and automatic braking. Keep pedal braking as a safe fallback
+  # on vehicles where the dedicated message is not present.
+  return bool(brake_msg["BRAKE_LIGHT"]) if brake_msg is not None else brake_pressed
+
+
 NUMERIC_TO_TZ = {
     840: "America/New_York",   # 미국 (US) → 동부 시간대
     124: "America/Toronto",    # 캐나다 (CA) → 동부 시간대
@@ -101,6 +108,7 @@ class CarState(CarStateBase):
     self.ccnc_0x162 = None    
     self.hda_info_4a3 = None    
     self.tcs = None    
+    self.brake = None
     self.mdps = None
     self.steer_touch_2af = None
     self.cruise_buttons_msg = None
@@ -228,6 +236,7 @@ class CarState(CarStateBase):
           add_and_cache(cp_cruise, "SCC_CONTROL", "scc_control")          
         elif self.controls_ready_count == 121:
           add_and_cache(self.cp, "TCS", "tcs")
+          add_and_cache(self.cp, "BRAKE", "brake")
           add_and_cache(self.cp, "MDPS", "mdps")
           add_and_cache(self.cp_cam, "LFA", "lfa")
           add_and_cache(self.cp_cam, "LFA_ALT", "lfa_alt")          
@@ -494,7 +503,6 @@ class CarState(CarStateBase):
       ret.gasPressed = bool(cp.vl[self.accelerator_msg_canfd]["ACCELERATOR_PEDAL_PRESSED"]) if not self.use_accelerator else False if self.accelerator is None else bool(self.accelerator["ACCELERATOR_PEDAL_PRESSED"])
 
     ret.brakePressed = cp.vl["TCS"]["DriverBraking"] == 1
-    ret.brakeLights = bool(cp.vl["TCS"]["BrakeLight"])
     #print(cp.vl["TCS"], cp.vl_all["TCS"]["DriverBraking"][-10:])
 
     if self.doors_seatbelts is not None:
@@ -522,9 +530,7 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    # Keep UI brake indication limited to explicit pedal braking here.
-    # Active SCC braking is added below once cruise state is known.
-    ret.brakeLights = ret.brakePressed
+    ret.brakeLights = get_canfd_brake_lights(self.brake, ret.brakePressed)
 
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
 
