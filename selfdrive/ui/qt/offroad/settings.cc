@@ -878,7 +878,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
 
   latLongToggles = new ListWidget(this);
   latLongToggles->addItem(new CValueControl("CarrotLearningActive", tr("Auto-Tuner: Learning"), tr("Learn from driver interventions (gas/brake) and recommend parameter adjustments when parking. 0=Off, 1=On"), 0, 1, 1));
-  latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", tr("Laneline mode speed(0)"), tr("Laneline mode, lat_mpc control used"), 0, 200, 5));
+  latLongToggles->addItem(new CValueControl("UseLaneLineSpeed", tr("Laneline/high-speed tuning threshold(0)"), tr("Selects LaneLine mode and high-speed yaw/torque tuning at this speed"), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("UseLaneLineCurveSpeed", tr("Laneline mode curve speed(0)"), tr("Laneline mode, high speed only"), 0, 200, 5));
   latLongToggles->addItem(new CValueControl("AdjustLaneOffset", tr("AdjustLaneOffset(0)cm"), "", 0, 500, 5));
   latLongToggles->addItem(new CValueControl("LaneChangeNeedTorque", tr("LaneChange need torque"), tr("-1:Disable lanechange, 0: no need torque, 1:need torque"), -1, 1, 1));
@@ -891,8 +891,8 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   latLongToggles->addItem(new CValueControl("SteerActuatorDelay", tr("LAT:SteerActuatorDelay(30)"), tr("x0.01, 0:LiveDelay"), 0, 100, 1));
   latLongToggles->addItem(new CValueControl("LatSmoothSec", tr("LAT:LatSmoothSec(13)"), tr("x0.01"), 1, 30, 1));
   latLongToggles->addItem(new CValueControl("LateralTorqueCustom", tr("LAT: TorqueCustom(1)"), "", 0, 1, 1));
-  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactor", tr("LAT: TorqueAccelFactor(2500)"), "", 1000, 6000, 10));
-  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactorLaneline", tr("LAT: Laneline TorqueAccelFactor(5000)"), tr("TorqueAccelFactor used in LaneLine mode"), 1000, 6000, 10));
+  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactor", tr("LAT: Low-speed TorqueAccelFactor(2500)"), tr("Used below UseLaneLineSpeed"), 1000, 6000, 10));
+  latLongToggles->addItem(new CValueControl("LateralTorqueAccelFactorLaneline", tr("LAT: High-speed TorqueAccelFactor(5000)"), tr("Used at or above UseLaneLineSpeed, independently of LaneLine/LaneLess mode"), 1000, 6000, 10));
   latLongToggles->addItem(new CValueControl("LateralTorqueFriction", tr("LAT: TorqueFriction(100)"), "", 0, 1000, 10));
   latLongToggles->addItem(new CValueControl("CustomSteerMax", tr("LAT: CustomSteerMax(0)"), "", 0, 30000, 5));
   latLongToggles->addItem(new CValueControl("CustomSteerDeltaUp", tr("LAT: CustomSteerDeltaUp(0)"), "", 0, 50, 1));

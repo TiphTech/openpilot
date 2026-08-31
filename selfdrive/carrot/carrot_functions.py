@@ -137,7 +137,6 @@ class CarrotPlanner:
     self.xDistToTurn = 0
     self.atcType = ""
     self.atc_active = False
-    self.speed_camera_warning_active = False
     self.tFollowSpeedFactor = 0.0 # 고속 주행 시 추가 차간 거리 가중치
 
     self._stop_x_rl = None
@@ -491,24 +490,6 @@ class CarrotPlanner:
     v_cruise_kph = self.cruise_eco_control(v_ego_cluster_kph, v_cruise_kph)
     v_cruise_kph, atc_active = self._update_carrot_man(sm, v_ego_kph, v_cruise_kph)
 
-    # Use one shared warning edge for sound, UI, and cruise control. Hyundai's
-    # native camera flag is authoritative; external sources enter at 200 m.
-    carrot_camera_active = False
-    if sm.alive['carrotMan']:
-      carrot_man = sm['carrotMan']
-      if carrot_man.xSpdType >= 0 and carrot_man.xSpdType != 22 and carrot_man.xSpdLimit > 0:
-        carrot_camera_active = carrot_man.xSpdDist <= 200
-
-    stock_camera_active = carstate.speedLimit >= 30
-    speed_camera_warning_active = carrot_camera_active or stock_camera_active
-    if speed_camera_warning_active and not self.speed_camera_warning_active:
-      if self.params.get_int("SpeedCameraBeep") > 0:
-        self.events.add(EventName.audio1)
-    elif self.speed_camera_warning_active and not speed_camera_warning_active:
-      if self.params.get_int("SpeedCameraBeep") > 0:
-        self.events.add(EventName.audio2)
-    self.speed_camera_warning_active = speed_camera_warning_active
-    
     #if atc_active and not self.atc_active and self.xState not in [XState.e2eStop, XState.e2eStopped, XState.lead]:
     #  if self.atcType in ["turn left", "turn right", "atc left", "atc right"]:
     #    self.xState = XState.e2ePrepare

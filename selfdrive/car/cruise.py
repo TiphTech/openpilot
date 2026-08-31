@@ -3,6 +3,7 @@ import numpy as np
 
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
+from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active
 
 from opendbc.car import structs
 GearShifter = structs.CarState.GearShifter
@@ -29,7 +30,6 @@ CRUISE_INTERVAL_SIGN = {
   ButtonType.accelCruise: +1,
   ButtonType.decelCruise: -1,
 }
-
 
 class VCruiseHelper:
   def __init__(self, CP):
@@ -349,6 +349,11 @@ class VCruiseCarrot:
       self.carrot_cmd_index = carrot_man.carrotCmdIndex
       self.carrot_cmd = carrot_man.carrotCmd
       self.carrot_arg = carrot_man.carrotArg
+    else:
+      self.xSpdLimit = 0
+      self.xSpdDist = 0
+      self.xSpdType = -1
+      self.activeCarrot = 0
     if sm.alive['longitudinalPlan']:
       lp = sm['longitudinalPlan']
       self.xState = lp.xState
@@ -514,8 +519,7 @@ class VCruiseCarrot:
     return button_kph, button_type, self.long_pressed
 
   def _displayed_road_limit_info(self, CS):
-    camera_limit = self.xSpdLimit > 0 and self.xSpdType >= 0 and self.xSpdType != 22 and self.xSpdDist <= 200
-    if camera_limit:
+    if self._apn_speed_camera_zone_active():
       return float(self.xSpdLimit), True
 
     stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
@@ -538,20 +542,13 @@ class VCruiseCarrot:
     return int(road_limit_kph + 0.5)
 
   def _camera_zone_limit_info(self, CS):
-    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
-    if stock_limit_kph >= 30:
-      return stock_limit_kph, False
-
-    carrot_camera_zone = (
-      self.xSpdLimit >= 30 and
-      self.xSpdType >= 0 and
-      self.xSpdType != 22 and
-      self.xSpdDist <= 200
-    )
-    if carrot_camera_zone:
+    if self._apn_speed_camera_zone_active():
       return float(self.xSpdLimit), True
 
     return 0.0, False
+
+  def _apn_speed_camera_zone_active(self):
+    return apn_speed_camera_active(self.activeCarrot, self.xSpdType, self.xSpdLimit, self.xSpdDist)
 
   def _road_limit_cluster_kph(self, CS, road_limit_kph=None, limit_is_adjusted=False):
     if road_limit_kph is None:

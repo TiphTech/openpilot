@@ -5,6 +5,7 @@ import threading
 from cereal import car, messaging
 from openpilot.common.params import Params
 from openpilot.common.realtime import Ratekeeper
+from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active
 
 AudibleAlert = car.CarControl.HUDControl.AudibleAlert
 
@@ -12,6 +13,8 @@ class Beepd:
   def __init__(self):
     self.params = Params()
     self.current_alert = AudibleAlert.none
+    self.speed_camera_zone_active = False
+    self.last_speed_camera_sound_time = 0.0
     self.enable_gpio()
     self.startup_beep()
 
@@ -98,6 +101,22 @@ class Beepd:
   def dispatch_beep(self, func):
     threading.Thread(target=func, daemon=True).start()
 
+  def dispatch_speed_camera_sound(self, entering):
+    self.last_speed_camera_sound_time = time.monotonic()
+    self.dispatch_beep(self.speed_camera if entering else self.speed_camera_end)
+
+  def update_speed_camera(self, sm):
+    if not sm.updated['carrotMan'] or not sm.alive['carrotMan']:
+      return
+
+    carrot_man = sm['carrotMan']
+    camera_active = apn_speed_camera_active(carrot_man.activeCarrot, carrot_man.xSpdType,
+                                            carrot_man.xSpdLimit, carrot_man.xSpdDist)
+    if camera_active != self.speed_camera_zone_active:
+      self.speed_camera_zone_active = camera_active
+      if self.params.get_int("SpeedCameraBeep") > 0:
+        self.dispatch_speed_camera_sound(camera_active)
+
   def update_alert(self, new_alert):
     if new_alert != self.current_alert:
       self.current_alert = new_alert
@@ -115,9 +134,11 @@ class Beepd:
       elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
         if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
-          self.dispatch_beep(self.speed_camera)
+          if time.monotonic() - self.last_speed_camera_sound_time > 1.0:
+            self.dispatch_speed_camera_sound(True)
         elif new_alert == AudibleAlert.audio2 and self.params.get_int("SpeedCameraBeep") > 0:
-          self.dispatch_beep(self.speed_camera_end)
+          if time.monotonic() - self.last_speed_camera_sound_time > 1.0:
+            self.dispatch_speed_camera_sound(False)
         else:
           self.dispatch_beep(self.beep)
 
@@ -147,11 +168,12 @@ class Beepd:
     if test:
       threading.Thread(target=self.test_beepd_thread, daemon=True).start()
 
-    sm = messaging.SubMaster(['selfdriveState'])
+    sm = messaging.SubMaster(['selfdriveState', 'carrotMan'])
     rk = Ratekeeper(20)
 
     while True:
       sm.update(0)
+      self.update_speed_camera(sm)
       self.get_audible_alert(sm)
       rk.keep_time()
 

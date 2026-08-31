@@ -18,6 +18,7 @@ from openpilot.common.params import Params
 from openpilot.common.realtime import config_realtime_process
 from openpilot.common.transformations.orientation import rot_from_euler, euler_from_rot
 from openpilot.common.swaglog import cloudlog
+from openpilot.selfdrive.carrot.speed_tuning import camera_yaw_trim_deg
 
 MIN_SPEED_FILTER = 15 * CV.MPH_TO_MS
 MAX_VEL_ANGLE_STD = np.radians(0.25)
@@ -273,7 +274,10 @@ def main() -> NoReturn:
     if sm.updated['cameraOdometry']:
       calibrator.handle_v_ego(sm['carState'].vEgo)
 
-      yaw_trim_deg = params_reader.get_float("CameraYawTrimDeg") * 0.01
+      configured_yaw_trim_deg = params_reader.get_float("CameraYawTrimDeg") * 0.01
+      use_lane_line_speed = params_reader.get_float("UseLaneLineSpeed")
+      yaw_trim_deg = camera_yaw_trim_deg(configured_yaw_trim_deg, use_lane_line_speed,
+                                         params_reader.get_bool("IsMetric"), sm['carState'].vEgo)
       trim_active = abs(yaw_trim_deg) > 1e-6
       calib_done = calibrator.cal_status == log.LiveCalibrationData.Status.calibrated
 

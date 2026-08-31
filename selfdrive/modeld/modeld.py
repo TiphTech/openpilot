@@ -29,6 +29,7 @@ from openpilot.selfdrive.modeld.parse_model_outputs import Parser
 from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_pose_msg, PublishState
 from openpilot.common.file_chunker import read_file_chunked
 from openpilot.selfdrive.modeld.constants import ModelConstants, Plan
+from openpilot.selfdrive.carrot.speed_tuning import camera_yaw_trim_deg
 
 
 PROCESS_NAME = "selfdrive.modeld.modeld"
@@ -328,7 +329,9 @@ def main(demo=False):
   custom_lat_delay = 0.0
   lat_smooth_seconds = LAT_SMOOTH_SECONDS
   vEgoStopping = params.get_float("VEgoStopping") * 0.01
-  camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+  configured_camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+  use_lane_line_speed = params.get_float("UseLaneLineSpeed")
+  is_metric = params.get_bool("IsMetric")
   while True:
     frame += 1
     if frame % 100 == 0:
@@ -336,7 +339,9 @@ def main(demo=False):
       lat_smooth_seconds = params.get_float("LatSmoothSec") * 0.01
       long_delay = params.get_float("LongActuatorDelay")*0.01
       vEgoStopping = params.get_float("VEgoStopping") * 0.01
-      camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+      configured_camera_yaw_trim_deg = params.get_float("CameraYawTrimDeg") * 0.01
+      use_lane_line_speed = params.get_float("UseLaneLineSpeed")
+      is_metric = params.get_bool("IsMetric")
 
     # Keep receiving frames until we are at least 1 frame ahead of previous extra frame
     while meta_main.timestamp_sof < meta_extra.timestamp_sof + 25000000:
@@ -380,7 +385,8 @@ def main(demo=False):
       device_from_calib_euler = np.array(sm["liveCalibration"].rpyCalib, dtype=np.float32)
 
       calib_done = sm["liveCalibration"].calStatus == log.LiveCalibrationData.Status.calibrated
-      applied_yaw_trim_deg = camera_yaw_trim_deg if calib_done else 0.0
+      applied_yaw_trim_deg = camera_yaw_trim_deg(configured_camera_yaw_trim_deg,
+                                                use_lane_line_speed, is_metric, v_ego) if calib_done else 0.0
 
       if applied_yaw_trim_deg != 0.0:
         device_from_calib_euler[2] -= np.radians(applied_yaw_trim_deg)

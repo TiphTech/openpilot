@@ -7,6 +7,7 @@ from cereal import log
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
+from openpilot.selfdrive.carrot.speed_tuning import high_speed_tuning_active
 
 from opendbc.car.interfaces import LatControlInputs
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
@@ -144,7 +145,9 @@ class LatControlTorque(LatControl):
     if self.frame % 10 == 0:
       lateralTorqueCustom = self.params.get_int("LateralTorqueCustom")
       if lateralTorqueCustom > 0:
-        factor_name = "LateralTorqueAccelFactorLaneline" if active_lane_line else "LateralTorqueAccelFactor"
+        use_lane_line_speed = self.params.get_float("UseLaneLineSpeed")
+        high_speed_tuning = high_speed_tuning_active(CS.vEgo, use_lane_line_speed, self.params.get_bool("IsMetric"))
+        factor_name = "LateralTorqueAccelFactorLaneline" if high_speed_tuning else "LateralTorqueAccelFactor"
         try:
           base_factor = self.params.get_float(factor_name)
         except UnknownKeyName:

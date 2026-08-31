@@ -1949,6 +1949,17 @@ typedef struct {
 #endif
 
 char    carrot_man_debug[256] = "";
+
+static bool isApnSpeedCameraType(int type) {
+    switch (type) {
+      case 0: case 1: case 2: case 3: case 4:
+      case 7: case 8: case 75: case 76: case 100: case 101:
+        return true;
+      default:
+        return false;
+    }
+}
+
 class DrawCarrot : public QObject {
     Q_OBJECT
 
@@ -2014,11 +2025,15 @@ public:
             xSpdLimit = carrot_man.getXSpdLimit();
             xSpdDist = carrot_man.getXSpdDist();
             xSignType = carrot_man.getXSpdType();
+        } else {
+            active_carrot = 0;
+            xSpdLimit = 0;
+            xSpdDist = 0;
+            xSignType = -1;
         }
-        const bool camera_type = xSignType >= 0 && xSignType != 22;
-        const bool carrot_camera_active = carrot_man_alive && camera_type && xSpdLimit >= 30 && xSpdDist <= 200;
-        const bool stock_camera_active = car_state_alive && car_state.getSpeedLimit() >= 30;
-        speed_camera_warning_active = carrot_camera_active || stock_camera_active;
+        speed_camera_warning_active = carrot_man_alive && active_carrot >= 2 &&
+                                      isApnSpeedCameraType(xSignType) &&
+                                      xSpdLimit >= 30 && xSpdDist <= 200;
         if (!speed_camera_zone_initialized) {
             if (speed_camera_warning_active) {
               speed_camera_flash_timer = 20;
@@ -2565,12 +2580,11 @@ public:
 
         if (true) {
             int disp_speed = 0;
-            bool camera_type = xSignType >= 0 && xSignType != 22;
-            bool camera_limit = xSpdLimit > 0 && camera_type;
+            bool camera_limit = speed_camera_warning_active;
             bool stock_camera_limit = carState.getSpeedLimit() > 0;
             const bool show_speed_camera_icon = speed_camera_warning_active;
             if (camera_limit || stock_camera_limit) {
-                float camera_speed_limit = stock_camera_limit ? carState.getSpeedLimit() : xSpdLimit;
+                float camera_speed_limit = camera_limit ? xSpdLimit : carState.getSpeedLimit();
                 disp_speed = (int)(camera_speed_limit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
             } else {
                 disp_speed = nRoadLimitSpeed;
@@ -2633,7 +2647,10 @@ public:
             ui_draw_text(s, dx + stat_text_offset_x, dy + 16, str, 38, COLOR_WHITE, BOLD);
         }
 
-        const char* torque_factor_name = active_lane_line ? "LateralTorqueAccelFactorLaneline" : "LateralTorqueAccelFactor";
+        const float use_lane_line_speed = params.getFloat("UseLaneLineSpeed");
+        const float current_speed = v_ego_real * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
+        const bool high_speed_tuning = use_lane_line_speed > 0.0f && current_speed >= use_lane_line_speed;
+        const char* torque_factor_name = high_speed_tuning ? "LateralTorqueAccelFactorLaneline" : "LateralTorqueAccelFactor";
         const float torque_accel_factor = std::clamp(params.getFloat(torque_factor_name), 1000.0f, 6000.0f);
 
         char torque_str[64];
