@@ -31,11 +31,12 @@ GearShifter = structs.CarState.GearShifter
 READY_COUNT_OK = 200
 
 
-def get_canfd_brake_lights(brake_msg, brake_pressed: bool) -> bool:
-  # BRAKE.BRAKE_LIGHT is the vehicle's actual stop-lamp state, including
-  # regenerative and automatic braking. Keep pedal braking as a safe fallback
-  # on vehicles where the dedicated message is not present.
-  return bool(brake_msg["BRAKE_LIGHT"]) if brake_msg is not None else brake_pressed
+def get_canfd_brake_lights(brake_msg, tcs_brake_light: int, brake_pressed: bool) -> bool:
+  # BRAKE.BRAKE_LIGHT covers hydraulic and SCC braking. TCS.BrakeLight state 1
+  # additionally carries the regenerative stop-lamp request; states 2 and 3
+  # are not an illuminated lamp and previously caused false UI indications.
+  dedicated_brake_light = bool(brake_msg["BRAKE_LIGHT"]) if brake_msg is not None else False
+  return dedicated_brake_light or tcs_brake_light == 1 or (brake_msg is None and brake_pressed)
 
 
 NUMERIC_TO_TZ = {
@@ -530,7 +531,7 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    ret.brakeLights = get_canfd_brake_lights(self.brake, ret.brakePressed)
+    ret.brakeLights = get_canfd_brake_lights(self.brake, int(cp.vl["TCS"]["BrakeLight"]), ret.brakePressed)
 
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
 
