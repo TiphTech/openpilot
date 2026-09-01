@@ -929,6 +929,9 @@ class CarrotMan:
         #print("navdNaviPoints=", self.navi_points)
       else:
         print("Received points from navd: 0")
+        self.navi_points = []
+        self.navi_points_start_index = 0
+        self.navi_points_active = False
         self.navd_active = False
 
     msg = messaging.new_message('navRoute', valid=True)
@@ -973,7 +976,7 @@ class CarrotMan:
                 points.append(coord)
               coords = [c.as_dict() for c in points]
               self.navi_points_start_index = 0
-              self.navi_points_active = True
+              self.navi_points_active = len(coords) > 0
               print("Received points:", len(self.navi_points))
               #print("Received points:", self.navi_points)
 
@@ -999,6 +1002,11 @@ class CarrotMan:
                 dest = coords[-1]
                 dest['place_name'] = "External Navi"
                 self.params.put("NavDestination", json.dumps(dest))
+              else:
+                self.navi_points = []
+                self.navi_points_start_index = 0
+                self.navd_active = False
+                self.params.remove("NavDestination")
 
             except Exception as e:
               print(e)
