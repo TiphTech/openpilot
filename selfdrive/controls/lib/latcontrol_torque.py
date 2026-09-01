@@ -7,7 +7,7 @@ from cereal import log
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N
-from openpilot.selfdrive.carrot.speed_tuning import high_speed_tuning_active
+from openpilot.selfdrive.carrot.speed_tuning import high_speed_tuning_active, torque_accel_factor
 
 from opendbc.car.interfaces import LatControlInputs
 from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
@@ -151,8 +151,8 @@ class LatControlTorque(LatControl):
         try:
           base_factor = self.params.get_float(factor_name)
         except UnknownKeyName:
-          base_factor = self.params.get_float("LateralTorqueAccelFactor")
-        base_factor = float(np.clip(base_factor, 1000.0, 6000.0))
+          base_factor = 0.0
+        base_factor = torque_accel_factor(base_factor, high_speed_tuning)
         self.torque_params.latAccelFactor = base_factor*0.001
         self.torque_params.friction = self.params.get_float("LateralTorqueFriction")*0.001
         lateralTorqueKp = self.params.get_float("LateralTorqueKpV")*0.01

@@ -14,7 +14,7 @@ from ftplib import FTP
 from cereal import log
 import cereal.messaging as messaging
 from openpilot.common.realtime import Ratekeeper
-from openpilot.common.params import Params
+from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.filter_simple import MyMovingAverage
 from openpilot.system.hardware import PC, TICI
 from openpilot.selfdrive.navd.helpers import Coordinate
@@ -201,7 +201,10 @@ class CarrotServ:
     self.autoNaviSpeedBumpSpeed = float(self.params.get_int("AutoNaviSpeedBumpSpeed"))
     self.autoNaviSpeedBumpTime = float(self.params.get_int("AutoNaviSpeedBumpTime"))
     self.autoNaviSpeedCtrlEnd = float(self.params.get_int("AutoNaviSpeedCtrlEnd"))
-    self.autoNaviSpeedCtrlAfterDist = float(self.params.get_int("AutoNaviSpeedCtrlAfterDist"))
+    try:
+      self.autoNaviSpeedCtrlAfterDist = float(self.params.get_int("AutoNaviSpeedCtrlAfterDist"))
+    except UnknownKeyName:
+      self.autoNaviSpeedCtrlAfterDist = 50.0
     self.autoNaviSpeedCtrlMode = self.params.get_int("AutoNaviSpeedCtrlMode")
     self.autoNaviSpeedSafetyFactor = float(self.params.get_int("AutoNaviSpeedSafetyFactor")) * 0.01
     self.autoNaviSpeedDecelRate = float(self.params.get_int("AutoNaviSpeedDecelRate")) * 0.01

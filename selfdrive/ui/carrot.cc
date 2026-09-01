@@ -2651,7 +2651,10 @@ public:
         const float current_speed = v_ego_real * (s->scene.is_metric ? MS_TO_KPH : MS_TO_MPH);
         const bool high_speed_tuning = use_lane_line_speed > 0.0f && current_speed >= use_lane_line_speed;
         const char* torque_factor_name = high_speed_tuning ? "LateralTorqueAccelFactorLaneline" : "LateralTorqueAccelFactor";
-        const float torque_accel_factor = std::clamp(params.getFloat(torque_factor_name), 1000.0f, 6000.0f);
+        float torque_accel_factor = params.getFloat(torque_factor_name);
+        if (torque_accel_factor < 1000.0f || torque_accel_factor > 6000.0f) {
+          torque_accel_factor = high_speed_tuning ? 5000.0f : 2500.0f;
+        }
 
         char torque_str[64];
         snprintf(torque_str, sizeof(torque_str), "LAT TQ %.0f", torque_accel_factor);

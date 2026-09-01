@@ -3,7 +3,7 @@ import subprocess
 import time
 import threading
 from cereal import car, messaging
-from openpilot.common.params import Params
+from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.realtime import Ratekeeper
 from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active
 
@@ -105,6 +105,12 @@ class Beepd:
     self.last_speed_camera_sound_time = time.monotonic()
     self.dispatch_beep(self.speed_camera if entering else self.speed_camera_end)
 
+  def speed_camera_beep_enabled(self):
+    try:
+      return self.params.get_int("SpeedCameraBeep") > 0
+    except UnknownKeyName:
+      return True
+
   def update_speed_camera(self, sm):
     if not sm.updated['carrotMan'] or not sm.alive['carrotMan']:
       return
@@ -114,7 +120,7 @@ class Beepd:
                                             carrot_man.xSpdLimit, carrot_man.xSpdDist)
     if camera_active != self.speed_camera_zone_active:
       self.speed_camera_zone_active = camera_active
-      if self.params.get_int("SpeedCameraBeep") > 0:
+      if self.speed_camera_beep_enabled():
         self.dispatch_speed_camera_sound(camera_active)
 
   def update_alert(self, new_alert):
@@ -133,10 +139,10 @@ class Beepd:
         self.dispatch_beep(self.dong)
       elif new_alert in [AudibleAlert.audio1, AudibleAlert.audio2, AudibleAlert.audio3, AudibleAlert.audio4, AudibleAlert.audio5,
                          AudibleAlert.audio6, AudibleAlert.audio7, AudibleAlert.audio8, AudibleAlert.audio9, AudibleAlert.audio10]:
-        if new_alert == AudibleAlert.audio1 and self.params.get_int("SpeedCameraBeep") > 0:
+        if new_alert == AudibleAlert.audio1 and self.speed_camera_beep_enabled():
           if time.monotonic() - self.last_speed_camera_sound_time > 1.0:
             self.dispatch_speed_camera_sound(True)
-        elif new_alert == AudibleAlert.audio2 and self.params.get_int("SpeedCameraBeep") > 0:
+        elif new_alert == AudibleAlert.audio2 and self.speed_camera_beep_enabled():
           if time.monotonic() - self.last_speed_camera_sound_time > 1.0:
             self.dispatch_speed_camera_sound(False)
         else:
