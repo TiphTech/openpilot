@@ -10,6 +10,8 @@ import cereal.messaging as messaging
 from cereal import log
 
 from openpilot.common.params import Params
+from openpilot.common.filter_simple import FirstOrderFilter
+from openpilot.selfdrive.carrot.speed_tuning import path_offset_for_mode
 #from openpilot.selfdrive.controls.lib.lane_planner import LanePlanner
 from openpilot.selfdrive.controls.lib.lane_planner_2 import LanePlanner
 from collections import deque
@@ -60,6 +62,7 @@ class LateralPlanner:
 
     self.useLaneLineSpeedApply = self.params.get_int("UseLaneLineSpeed")
     self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
+    self.pathOffsetFilter = FirstOrderFilter(0.0, 1.0, DT_MDL)
     self.useLaneLineMode = False
     self.plan_a = np.zeros((TRAJECTORY_SIZE, ))
     self.plan_yaw = np.zeros((TRAJECTORY_SIZE,))
@@ -160,7 +163,8 @@ class LateralPlanner:
     self.latDebugText = self.LP.debugText
     #self.lanelines_active = True if self.LP.d_prob > 0.3 and self.LP.lanefull_mode else False
 
-    self.path_xyz[:, 1] += self.pathOffset
+    target_path_offset = path_offset_for_mode(self.pathOffset, self.lanelines_active)
+    self.path_xyz[:, 1] += self.pathOffsetFilter.update(target_path_offset)
 
     self.lat_mpc.set_weights(self.lateralPathCost, self.lateralMotionCost,
                              LATERAL_ACCEL_COST, LATERAL_JERK_COST,
