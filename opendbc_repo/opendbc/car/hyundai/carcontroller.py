@@ -115,6 +115,7 @@ class CarController(CarControllerBase):
     self.angle_limit_counter = 0
 
     self.accel_last = 0
+    self.accel_value_last = 0.0
     self.apply_torque_last = 0
     self.car_fingerprint = CP.carFingerprint
     self.last_button_frame = 0
@@ -392,15 +393,17 @@ class CarController(CarControllerBase):
             can_sends.extend(hyundaicanfd.create_fca_warning_light(self.CP, self.packer, self.CAN, self.frame))
         if self.frame % 2 == 0:
           if self.CP.flags & HyundaiFlags.CAMERA_SCC.value:
-            msg = hyundaicanfd.create_acc_control_scc2(self.packer, self.CAN, CC.enabled, self.accel_last, accel, stopping, CC.cruiseControl.override,
-                                                             set_speed_in_units, hud_control, self.hyundai_jerk, CS)
+            msg, self.accel_value_last = hyundaicanfd.create_acc_control_scc2(
+              self.packer, self.CAN, CC.enabled, self.accel_value_last, accel, stopping, CC.cruiseControl.override,
+              set_speed_in_units, hud_control, self.hyundai_jerk, CS,
+            )
             if msg is not None:
               can_sends.append(msg)
             can_sends.extend(hyundaicanfd.create_tcs_messages(self.packer, self.CAN, CS)) # for sorento SCC radar...
           else:
             can_sends.append(hyundaicanfd.create_acc_control(self.packer, self.CAN, CC.enabled, self.accel_last, accel, stopping, CC.cruiseControl.override,
                                                              set_speed_in_units, hud_control, self.hyundai_jerk.jerk_u, self.hyundai_jerk.jerk_l, CS))
-          self.accel_last = accel
+            self.accel_last = accel
       else:
         # button presses
         if self.camera_scc_params == 3: # camera scc but stock long
@@ -470,7 +473,7 @@ class CarController(CarControllerBase):
 
   def create_button_messages(self, CC: structs.CarControl, CS: CarState, use_clu11: bool):
     can_sends = []
-    if CS.out.brakePressed or CS.out.brakeHoldActive:
+    if CS.out.brakePressed or CS.out.brakeHoldActive or CS.out.parkingBrake:
       return can_sends
     if use_clu11:
       if CC.cruiseControl.cancel:
@@ -542,6 +545,9 @@ class CarController(CarControllerBase):
     trigger_start = 6
     self.MainMode_ACC_trigger = max(trigger_min, self.MainMode_ACC_trigger - 1)
     self.LFA_trigger = max(trigger_min, self.LFA_trigger - 1)
+    if CS.out.brakeHoldActive or CS.out.parkingBrake:
+      self.MainMode_ACC_trigger = trigger_min
+      return
     if self.MainMode_ACC_trigger == trigger_min and self.LFA_trigger == trigger_min:
       if CC.enabled and not CS.MainMode_ACC and CS.out.vEgo > 3.:
         self.MainMode_ACC_trigger = trigger_start
@@ -566,6 +572,10 @@ class CarController(CarControllerBase):
 
 
   def make_spam_button(self, CC, CS):
+    if CS.out.brakePressed or CS.out.brakeHoldActive or CS.out.parkingBrake:
+      self.activateCruise = 0
+      return 0
+
     hud_control = CC.hudControl
     set_speed_in_units = hud_control.setSpeed * (CV.MS_TO_KPH if CS.is_metric else CV.MS_TO_MPH)
     target = int(set_speed_in_units+0.5)

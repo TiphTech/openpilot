@@ -22,6 +22,8 @@ ButtonType = structs.CarState.ButtonEvent.Type
 PREV_BUTTON_SAMPLES = 8
 CLUSTER_SAMPLE_RATE = 20  # frames
 STANDSTILL_THRESHOLD = 12 * 0.03125 * CV.KPH_TO_MS
+CANFD_AVH_RELEASE_GRACE_FRAMES = round(0.5 / DT_CTRL)
+CANFD_AVH_LAMP_ACTIVE = 2
 
 BUTTONS_DICT = {Buttons.RES_ACCEL: ButtonType.accelCruise, Buttons.SET_DECEL: ButtonType.decelCruise,
                 Buttons.GAP_DIST: ButtonType.gapAdjustCruise, Buttons.CANCEL: ButtonType.cancel, Buttons.LFA_BUTTON: ButtonType.lfaButton}
@@ -37,6 +39,28 @@ def get_canfd_brake_lights(brake_msg, tcs_brake_light: int, brake_pressed: bool)
   # are not an illuminated lamp and previously caused false UI indications.
   dedicated_brake_light = bool(brake_msg["BRAKE_LIGHT"]) if brake_msg is not None else False
   return dedicated_brake_light or tcs_brake_light == 1 or (brake_msg is None and brake_pressed)
+
+
+def is_canfd_parking_brake_active(parking_brake_state: int) -> bool:
+  return parking_brake_state == 1
+
+
+def update_canfd_auto_hold_interlock_state(avh_state: int, avh_lamp: int, oem_hold_latched: bool,
+                                           release_grace_frames: int) -> tuple[bool, int]:
+  """Track OEM AutoHold without confusing it with an SCC hydraulic hold."""
+  if avh_lamp == CANFD_AVH_LAMP_ACTIVE:
+    oem_hold_latched = True
+    release_grace_frames = CANFD_AVH_RELEASE_GRACE_FRAMES
+  elif oem_hold_latched and avh_state == 2:
+    release_grace_frames = CANFD_AVH_RELEASE_GRACE_FRAMES
+  elif oem_hold_latched:
+    release_grace_frames = max(0, release_grace_frames - 1)
+    if release_grace_frames == 0:
+      oem_hold_latched = False
+  else:
+    release_grace_frames = 0
+
+  return oem_hold_latched, release_grace_frames
 
 
 NUMERIC_TO_TZ = {
@@ -140,6 +164,8 @@ class CarState(CarStateBase):
     self.ACCMode = 0
     self.LFA_ICON = 0
     self.paddle_button_prev = 0
+    self.canfdOemBrakeHoldLatched = False
+    self.canfdAvhReleaseGraceFrames = 0
 
     self.lf_distance = 0
     self.rf_distance = 0
@@ -504,6 +530,7 @@ class CarState(CarStateBase):
       ret.gasPressed = bool(cp.vl[self.accelerator_msg_canfd]["ACCELERATOR_PEDAL_PRESSED"]) if not self.use_accelerator else False if self.accelerator is None else bool(self.accelerator["ACCELERATOR_PEDAL_PRESSED"])
 
     ret.brakePressed = cp.vl["TCS"]["DriverBraking"] == 1
+    ret.parkingBrake = is_canfd_parking_brake_active(cp.vl["TCS"]["ESC_PrkBrkActvSta"])
     #print(cp.vl["TCS"], cp.vl_all["TCS"]["DriverBraking"][-10:])
 
     if self.doors_seatbelts is not None:
@@ -581,7 +608,14 @@ class CarState(CarStateBase):
       self.MainMode_ACC = cp_cam.vl["SCC_CONTROL"]["MainMode_ACC"] == 1
       self.ACCMode = cp_cam.vl["SCC_CONTROL"]["ACCMode"]
       self.LFA_ICON = cp_cam.vl["LFAHDA_CLUSTER"]["HDA_LFA_SymSta"]
-      
+
+    avh_state = cp.vl["ESP_STATUS"]["AVH_Sta"]
+    avh_lamp = cp.vl["ESP_STATUS"]["AVH_LAMP"]
+    ret.brakeHoldActive, self.canfdAvhReleaseGraceFrames = update_canfd_auto_hold_interlock_state(
+      avh_state, avh_lamp, self.canfdOemBrakeHoldLatched, self.canfdAvhReleaseGraceFrames,
+    )
+    self.canfdOemBrakeHoldLatched = ret.brakeHoldActive
+
     cp_cruise_info = cp_cam if self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC else cp
     if self.CP.openpilotLongitudinalControl:
       # These are not used for engage/disengage since openpilot keeps track of state using the buttons
@@ -596,7 +630,6 @@ class CarState(CarStateBase):
         ret.pcmCruiseGap = int(np.clip(cp_cruise_info.vl["SCC_CONTROL"]["DISTANCE_SETTING"], 1, 4))
       ret.cruiseState.standstill = cp_cruise_info.vl["SCC_CONTROL"]["InfoDisplay"] >= 4
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
-      ret.brakeHoldActive = cp.vl["ESP_STATUS"]["AUTO_HOLD"] == 1 and cp_cruise_info.vl["SCC_CONTROL"]["ACCMode"] not in (1, 2)
 
     speed_limit_cam = False
     corner = False
