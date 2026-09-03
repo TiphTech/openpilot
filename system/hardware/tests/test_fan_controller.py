@@ -48,3 +48,9 @@ class TestFanController:
     for _ in range(10):
       controller.update(90, True)
     assert controller.update(90, True) >= 60
+
+  def test_c3_temperature_feedforward(self, mocker):
+    controller = patched_controller(mocker, TiciFanController)
+    assert controller.update(60, True) == 30
+    assert controller.update(80, True) >= 50
+    assert controller.update(90, True) >= 75
