@@ -5,7 +5,7 @@ import threading
 from cereal import car, messaging
 from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.realtime import Ratekeeper
-from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active, vehicle_speed_camera_active
+from openpilot.selfdrive.carrot.speed_camera import speed_camera_zone_info
 
 AudibleAlert = car.CarControl.HUDControl.AudibleAlert
 
@@ -115,18 +115,29 @@ class Beepd:
     if not sm.updated['carrotMan'] and not sm.updated['carState']:
       return
 
-    apn_camera_active = False
+    active_carrot = 0
+    speed_type = -1
+    apn_speed_limit = 0.0
+    apn_speed_distance = 0.0
     if sm.alive['carrotMan']:
       carrot_man = sm['carrotMan']
-      apn_camera_active = apn_speed_camera_active(carrot_man.activeCarrot, carrot_man.xSpdType,
-                                                  carrot_man.xSpdLimit, carrot_man.xSpdDist)
+      active_carrot = carrot_man.activeCarrot
+      speed_type = carrot_man.xSpdType
+      apn_speed_limit = carrot_man.xSpdLimit
+      apn_speed_distance = carrot_man.xSpdDist
 
-    vehicle_camera_active = False
+    vehicle_speed_limit = 0.0
+    vehicle_speed_distance = 0.0
     if sm.alive['carState']:
       car_state = sm['carState']
-      vehicle_camera_active = vehicle_speed_camera_active(car_state.speedLimit, car_state.speedLimitDistance)
+      vehicle_speed_limit = car_state.speedLimit
+      vehicle_speed_distance = car_state.speedLimitDistance
 
-    camera_active = apn_camera_active or vehicle_camera_active
+    camera_limit, _ = speed_camera_zone_info(
+      active_carrot, speed_type, apn_speed_limit, apn_speed_distance,
+      vehicle_speed_limit, vehicle_speed_distance,
+    )
+    camera_active = camera_limit >= 30
     if camera_active != self.speed_camera_zone_active:
       self.speed_camera_zone_active = camera_active
       if self.speed_camera_beep_enabled():

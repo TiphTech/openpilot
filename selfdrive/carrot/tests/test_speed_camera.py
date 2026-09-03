@@ -1,4 +1,4 @@
-from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active, vehicle_speed_camera_active
+from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active, speed_camera_zone_info, vehicle_speed_camera_active
 
 
 def test_apn_speed_camera_requires_valid_apn_zone():
@@ -19,3 +19,9 @@ def test_vehicle_speed_camera_requires_active_distance():
   assert not vehicle_speed_camera_active(80, 0)
   assert not vehicle_speed_camera_active(80, -1)
   assert not vehicle_speed_camera_active(0, 100)
+
+
+def test_speed_camera_zone_prefers_apn_limit_and_adjustment_state():
+  assert speed_camera_zone_info(2, 1, 82, 150, 80, 150) == (82.0, True)
+  assert speed_camera_zone_info(0, -1, 0, 0, 80, 150) == (80.0, False)
+  assert speed_camera_zone_info(0, -1, 0, 0, 80, 250) == (0.0, False)
