@@ -5,7 +5,7 @@ import threading
 from cereal import car, messaging
 from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.realtime import Ratekeeper
-from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active
+from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active, vehicle_speed_camera_active
 
 AudibleAlert = car.CarControl.HUDControl.AudibleAlert
 
@@ -112,12 +112,21 @@ class Beepd:
       return True
 
   def update_speed_camera(self, sm):
-    if not sm.updated['carrotMan'] or not sm.alive['carrotMan']:
+    if not sm.updated['carrotMan'] and not sm.updated['carState']:
       return
 
-    carrot_man = sm['carrotMan']
-    camera_active = apn_speed_camera_active(carrot_man.activeCarrot, carrot_man.xSpdType,
-                                            carrot_man.xSpdLimit, carrot_man.xSpdDist)
+    apn_camera_active = False
+    if sm.alive['carrotMan']:
+      carrot_man = sm['carrotMan']
+      apn_camera_active = apn_speed_camera_active(carrot_man.activeCarrot, carrot_man.xSpdType,
+                                                  carrot_man.xSpdLimit, carrot_man.xSpdDist)
+
+    vehicle_camera_active = False
+    if sm.alive['carState']:
+      car_state = sm['carState']
+      vehicle_camera_active = vehicle_speed_camera_active(car_state.speedLimit, car_state.speedLimitDistance)
+
+    camera_active = apn_camera_active or vehicle_camera_active
     if camera_active != self.speed_camera_zone_active:
       self.speed_camera_zone_active = camera_active
       if self.speed_camera_beep_enabled():
@@ -174,7 +183,7 @@ class Beepd:
     if test:
       threading.Thread(target=self.test_beepd_thread, daemon=True).start()
 
-    sm = messaging.SubMaster(['selfdriveState', 'carrotMan'])
+    sm = messaging.SubMaster(['selfdriveState', 'carrotMan', 'carState'])
     rk = Ratekeeper(20)
 
     while True:

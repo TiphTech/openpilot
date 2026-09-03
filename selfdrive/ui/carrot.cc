@@ -2031,9 +2031,14 @@ public:
             xSpdDist = 0;
             xSignType = -1;
         }
-        speed_camera_warning_active = carrot_man_alive && active_carrot >= 2 &&
-                                      isApnSpeedCameraType(xSignType) &&
-                                      xSpdLimit >= 30 && xSpdDist <= 200;
+        apn_speed_camera_warning_active = carrot_man_alive && active_carrot >= 2 &&
+                                          isApnSpeedCameraType(xSignType) &&
+                                          xSpdLimit >= 30 && xSpdDist <= 200;
+        vehicle_speed_camera_warning_active = car_state_alive &&
+                                              car_state.getSpeedLimit() >= 30 &&
+                                              car_state.getSpeedLimitDistance() > 0 &&
+                                              car_state.getSpeedLimitDistance() <= 200;
+        speed_camera_warning_active = apn_speed_camera_warning_active || vehicle_speed_camera_warning_active;
         if (!speed_camera_zone_initialized) {
             if (speed_camera_warning_active) {
               speed_camera_flash_timer = 20;
@@ -2351,6 +2356,8 @@ public:
     int     speed_camera_flash_timer = 0;
     bool    speed_camera_flash_green = false;
     bool    speed_camera_warning_active = false;
+    bool    apn_speed_camera_warning_active = false;
+    bool    vehicle_speed_camera_warning_active = false;
     bool    speed_camera_zone_initialized = false;
     bool    speed_camera_zone_was_active = false;
     float cpuTemp = 0.0f;
@@ -2580,7 +2587,7 @@ public:
 
         if (true) {
             int disp_speed = 0;
-            bool camera_limit = speed_camera_warning_active;
+            bool camera_limit = apn_speed_camera_warning_active;
             bool stock_camera_limit = carState.getSpeedLimit() > 0;
             const bool show_speed_camera_icon = speed_camera_warning_active;
             if (camera_limit || stock_camera_limit) {

@@ -8,3 +8,7 @@ def apn_speed_camera_active(active_carrot, speed_type, speed_limit, speed_distan
     speed_limit >= 30 and
     speed_distance <= entry_distance
   )
+
+
+def vehicle_speed_camera_active(speed_limit, speed_distance, entry_distance=200):
+  return speed_limit >= 30 and 0 < speed_distance <= entry_distance

@@ -3,7 +3,7 @@ import numpy as np
 
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
-from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active
+from openpilot.selfdrive.carrot.speed_camera import apn_speed_camera_active, vehicle_speed_camera_active
 
 from opendbc.car import structs
 GearShifter = structs.CarState.GearShifter
@@ -544,6 +544,11 @@ class VCruiseCarrot:
   def _camera_zone_limit_info(self, CS):
     if self._apn_speed_camera_zone_active():
       return float(self.xSpdLimit), True
+
+    stock_limit_kph = float(getattr(CS, "speedLimit", 0.0) or 0.0)
+    stock_limit_distance = float(getattr(CS, "speedLimitDistance", 0.0) or 0.0)
+    if vehicle_speed_camera_active(stock_limit_kph, stock_limit_distance):
+      return stock_limit_kph, False
 
     return 0.0, False
 
