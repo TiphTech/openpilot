@@ -121,9 +121,13 @@ private:
   ListWidget* dispToggles;
   ListWidget* startToggles;
   ListWidget* speedToggles;
+  ListWidget* favoritesToggles;
+  QVBoxLayout* togglesLayout;
 
   void togglesCarrot(int widgetIndex);
   void updateButtonStyles();
+  void reloadFavorites();
+  void showEvent(QShowEvent* event) override;
 
 public:
   explicit CarrotPanel(QWidget* parent = nullptr);

@@ -835,6 +835,15 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
     updateButtonStyles();
   });
 
+  QPushButton* favorites_btn = new QPushButton(tr("Favorites"));
+  favorites_btn->setObjectName("favorites_btn");
+  QObject::connect(favorites_btn, &QPushButton::clicked, this, [this]() {
+    this->reloadFavorites();
+    this->currentCarrotIndex = 6;
+    this->togglesCarrot(6);
+    updateButtonStyles();
+  });
+
 
   updateButtonStyles();
 
@@ -844,10 +853,11 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   select_layout->addWidget(latLong_btn);
   select_layout->addWidget(disp_btn);
   select_layout->addWidget(path_btn);
+  select_layout->addWidget(favorites_btn);
   carrotLayout->addLayout(select_layout, 0);
 
   QWidget* toggles = new QWidget();
-  QVBoxLayout* toggles_layout = new QVBoxLayout(toggles);
+  togglesLayout = new QVBoxLayout(toggles);
 
   cruiseToggles = new ListWidget(this);
   cruiseToggles->addItem(new CValueControl("CruiseButtonMode", tr("Button: Cruise Button Mode"), tr("0:Normal,1:User1,2:User2"), 0, 2, 1));
@@ -1063,12 +1073,14 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   speedToggles->addItem(new CValueControl("AutoTurnControlTurnEnd", tr("ATC: Turn CtrlDistTime (6)"), tr("dist=speed*time"), 0, 30, 1));
   speedToggles->addItem(new CValueControl("AutoTurnMapChange", tr("ATC Auto Map Change(0)"), "", 0, 1, 1));
 
-  toggles_layout->addWidget(cruiseToggles);
-  toggles_layout->addWidget(latLongToggles);
-  toggles_layout->addWidget(dispToggles);
-  toggles_layout->addWidget(pathToggles);
-  toggles_layout->addWidget(startToggles);
-  toggles_layout->addWidget(speedToggles);
+  favoritesToggles = new ListWidget(this);
+  togglesLayout->addWidget(cruiseToggles);
+  togglesLayout->addWidget(latLongToggles);
+  togglesLayout->addWidget(dispToggles);
+  togglesLayout->addWidget(pathToggles);
+  togglesLayout->addWidget(startToggles);
+  togglesLayout->addWidget(speedToggles);
+  togglesLayout->addWidget(favoritesToggles);
   ScrollView* toggles_view = new ScrollView(toggles, this);
   carrotLayout->addWidget(toggles_view, 1);
 
@@ -1076,7 +1088,77 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   main_layout->addWidget(homeScreen);
   main_layout->setCurrentWidget(homeScreen);
 
+  reloadFavorites();
   togglesCarrot(0);
+}
+
+void CarrotPanel::showEvent(QShowEvent* event) {
+  QWidget::showEvent(event);
+  if (currentCarrotIndex == 6) {
+    reloadFavorites();
+    togglesCarrot(6);
+  }
+}
+
+void CarrotPanel::reloadFavorites() {
+  const int layout_index = togglesLayout->indexOf(favoritesToggles);
+  delete favoritesToggles;
+  favoritesToggles = new ListWidget(this);
+  togglesLayout->insertWidget(layout_index, favoritesToggles);
+
+  QFile favorites_file("../carrot/data/state/setting_favorites.json");
+  QFile settings_file("../carrot_settings.json");
+  if (!favorites_file.open(QIODevice::ReadOnly) || !settings_file.open(QIODevice::ReadOnly)) {
+    favoritesToggles->addItem(new LabelControl(tr("No favorites"), tr("Add favorites in Carrot Server")));
+    return;
+  }
+
+  QJsonParseError favorites_error;
+  QJsonParseError settings_error;
+  const QJsonObject favorites_root = QJsonDocument::fromJson(favorites_file.readAll(), &favorites_error).object();
+  const QJsonObject settings_root = QJsonDocument::fromJson(settings_file.readAll(), &settings_error).object();
+  if (favorites_error.error != QJsonParseError::NoError || settings_error.error != QJsonParseError::NoError) {
+    qWarning() << "Unable to parse Carrot favorites:" << favorites_error.errorString() << settings_error.errorString();
+    favoritesToggles->addItem(new LabelControl(tr("No favorites"), tr("Add favorites in Carrot Server")));
+    return;
+  }
+
+  QHash<QString, QJsonObject> settings_by_name;
+  for (const QJsonValue& value : settings_root.value("params").toArray()) {
+    const QJsonObject setting = value.toObject();
+    const QString name = setting.value("name").toString().trimmed();
+    if (!name.isEmpty()) settings_by_name.insert(name, setting);
+  }
+
+  const QString language = QString::fromStdString(Params().get("LanguageSetting"));
+  const bool korean = language == "main_ko";
+  const bool chinese = language.startsWith("main_zh");
+  const QString title_key = korean ? "title" : (chinese ? "ctitle" : "etitle");
+  const QString description_key = korean ? "descr" : (chinese ? "cdescr" : "edescr");
+  Params params;
+  int added = 0;
+
+  for (const QJsonValue& value : favorites_root.value("favorites").toArray()) {
+    const QString name = value.toString().trimmed();
+    if (!settings_by_name.contains(name) || !params.checkKey(name.toStdString())) continue;
+
+    const QJsonObject setting = settings_by_name.value(name);
+    QString title = setting.value(title_key).toString().trimmed();
+    QString description = setting.value(description_key).toString().trimmed();
+    if (title.isEmpty()) title = setting.value("etitle").toString().trimmed();
+    if (description.isEmpty()) description = setting.value("edescr").toString().trimmed();
+    if (title.isEmpty()) title = name;
+
+    favoritesToggles->addItem(new CValueControl(
+      name, title, description,
+      setting.value("min").toInt(), setting.value("max").toInt(),
+      qMax(1, setting.value("unit").toInt(1))));
+    added++;
+  }
+
+  if (added == 0) {
+    favoritesToggles->addItem(new LabelControl(tr("No favorites"), tr("Add favorites in Carrot Server")));
+  }
 }
 
 void CarrotPanel::togglesCarrot(int widgetIndex) {
@@ -1086,14 +1168,15 @@ void CarrotPanel::togglesCarrot(int widgetIndex) {
   latLongToggles->setVisible(widgetIndex == 3);
   dispToggles->setVisible(widgetIndex == 4);
   pathToggles->setVisible(widgetIndex == 5);
+  favoritesToggles->setVisible(widgetIndex == 6);
 }
 
 void CarrotPanel::updateButtonStyles() {
   QString styleSheet = R"(
-      #start_btn, #cruise_btn, #speed_btn, #latLong_btn ,#disp_btn, #path_btn {
+      #start_btn, #cruise_btn, #speed_btn, #latLong_btn ,#disp_btn, #path_btn, #favorites_btn {
         height: 120px; border-radius: 15px; background-color: #393939;
       }
-      #start_btn:pressed, #cruise_btn:pressed, #speed_btn:pressed, #latLong_btn:pressed, #disp_btn:pressed, #path_btn:pressed {
+      #start_btn:pressed, #cruise_btn:pressed, #speed_btn:pressed, #latLong_btn:pressed, #disp_btn:pressed, #path_btn:pressed, #favorites_btn:pressed {
         background-color: #4a4a4a;
       }
   )";
@@ -1116,6 +1199,9 @@ void CarrotPanel::updateButtonStyles() {
     break;
   case 5:
     styleSheet += "#path_btn { background-color: #33ab4c; }";
+    break;
+  case 6:
+    styleSheet += "#favorites_btn { background-color: #33ab4c; }";
     break;
   }
 
