@@ -160,6 +160,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"ShowPathColorCruiseOff", {PERSISTENT, INT, "19"}},
     {"ShowPathModeLane", {PERSISTENT, INT, "14"}},
     {"ShowPathColorLane", {PERSISTENT, INT, "13"}},
+    {"ShowPathWidth", {PERSISTENT, INT, "100"}},
     {"ShowPlotMode", {PERSISTENT, INT, "0"}},
     {"CarrotTireTrajectory", {PERSISTENT, INT, "0"}},
     {"CarrotLearningActive", {PERSISTENT, INT, "0"}},          // Auto-Tuner: 학습 활성화 (0=off, 1=on)
@@ -201,6 +202,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"AutoNaviSpeedSafetyFactor", {PERSISTENT, INT, "105"}},
     {"AutoNaviCountDownMode", {PERSISTENT, INT, "2"}},
     {"TurnSpeedControlMode", {PERSISTENT, INT, "1"}},
+    {"CarrotSmartSpeedControl", {PERSISTENT, INT, "0"}},
 
     {"MapTurnSpeedFactor", {PERSISTENT, INT, "90"}},
     {"ModelTurnSpeedFactor", {PERSISTENT, INT, "0"}},
@@ -327,6 +329,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
 
     {"DisableDM", {PERSISTENT, INT, "0"}},
+    {"EnableConnect", {PERSISTENT, INT, "0"}},
     {"MuteDoor", {PERSISTENT, INT, "0"}},
     {"MuteSeatbelt", {PERSISTENT, INT, "0"}},
 
