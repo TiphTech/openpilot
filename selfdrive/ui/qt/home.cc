@@ -1,5 +1,6 @@
 #include "selfdrive/ui/qt/home.h"
 
+#include <algorithm>
 #include <QHBoxLayout>
 #include <QMouseEvent>
 #include <QStackedWidget>
@@ -515,9 +516,17 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
 
   main_layout->addLayout(center_layout, 1);
 
+  shutdown_countdown = new QLabel(this);
+  shutdown_countdown->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+  shutdown_countdown->setStyleSheet("font-size: 38px; font-weight: 700; color: #FF453A; padding: 12px 0 4px 0;");
+  shutdown_countdown->hide();
+  main_layout->addWidget(shutdown_countdown);
+
   // set up refresh timer
   timer = new QTimer(this);
   timer->callOnTimeout(this, &OffroadHome::refresh);
+  shutdown_timer = new QTimer(this);
+  shutdown_timer->callOnTimeout(this, &OffroadHome::updateShutdownCountdown);
 
   setStyleSheet(R"(
     * {
@@ -541,10 +550,12 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
 void OffroadHome::showEvent(QShowEvent *event) {
   refresh();
   timer->start(10 * 1000);
+  shutdown_timer->start(1000);
 }
 
 void OffroadHome::hideEvent(QHideEvent *event) {
   timer->stop();
+  shutdown_timer->stop();
 }
 
 void OffroadHome::refresh() {
@@ -569,4 +580,28 @@ void OffroadHome::refresh() {
   if (alerts) {
     alert_notif->setText(QString::number(alerts) + (alerts > 1 ? tr(" ALERTS") : tr(" ALERT")));
   }
+
+  updateShutdownCountdown();
+}
+
+void OffroadHome::updateShutdownCountdown() {
+  const int max_time_min = params.getInt("MaxTimeOffroadMin");
+  const qint64 offroad_start = params.getInt("OffroadStartTime");
+  if (max_time_min <= 0 || offroad_start <= 0) {
+    shutdown_countdown->hide();
+    return;
+  }
+
+  // Matches the 30-second clean-shutdown delay in power_monitoring.py.
+  qint64 remaining = offroad_start + (max_time_min * 60) + 30 - QDateTime::currentSecsSinceEpoch();
+  remaining = std::max<qint64>(0, remaining);
+
+  const qint64 hours = remaining / 3600;
+  const qint64 minutes = (remaining % 3600) / 60;
+  const qint64 seconds = remaining % 60;
+  shutdown_countdown->setText(tr("POWER OFF IN %1:%2:%3")
+                                .arg(hours, 2, 10, QChar('0'))
+                                .arg(minutes, 2, 10, QChar('0'))
+                                .arg(seconds, 2, 10, QChar('0')));
+  shutdown_countdown->show();
 }

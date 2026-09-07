@@ -873,7 +873,7 @@ CarrotPanel::CarrotPanel(QWidget* parent) : QWidget(parent) {
   cruiseToggles->addItem(new CValueControl("DynamicTFollow", tr("Dynamic GAP control"), "", 0, 100, 5));
   cruiseToggles->addItem(new CValueControl("DynamicTFollowLC", tr("Dynamic GAP control (LaneChange)"), "", 0, 100, 5));
   cruiseToggles->addItem(new CValueControl("MyDrivingMode", tr("DRIVEMODE: Select"), tr("1:ECO,2:SAFE,3:NORMAL,4:HIGH"), 1, 4, 1));
-  cruiseToggles->addItem(new CValueControl("MyDrivingModeAuto", tr("DRIVEMODE: Auto"), tr("NORMAL mode only"), 0, 1, 1));
+  cruiseToggles->addItem(new CValueControl("MyDrivingModeAuto", tr("DRIVEMODE: Auto"), tr("0:Manual, 1:Traffic, 2:Eco below LaneLine speed / Normal above"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("TrafficLightDetectMode", tr("TrafficLight DetectMode"), tr("0:None, 1:Stopping only, 2: Stop & Go"), 0, 2, 1));
   cruiseToggles->addItem(new CValueControl("AChangeCostStarting", tr("AChangeCostStarting"), "", 0, 200, 10));
   cruiseToggles->addItem(new CValueControl("TrafficStopDistanceAdjust", tr("TrafficStopDistanceAdjust"), "", -600, 600, 50));

@@ -2101,14 +2101,14 @@
       "descr": "정체조건에서는 자동으로 안전모드로 전환, 앞차가속이 빠르거나 20kmh이상의 속도에서는 일반모드로 전환",
       "egroup": "ACCEL",
       "etitle": "DrivingMode: Auto",
-      "edescr": "Safety mode in Congested Conditions; Normal mode when lead vehicle accelerates quickly or 20+km/h.",
+      "edescr": "0: Manual. 1: Safety mode in congested conditions and Normal mode when traffic clears. 2: Eco below UseLaneLineSpeed and Normal at or above that speed. Changing DrivingMode manually pauses auto mode until this setting is toggled.",
       "min": 0,
-      "max": 1,
+      "max": 2,
       "default": 0,
       "unit": 1,
       "cgroup": "加速设置",
       "ctitle": "驾驶模式: 自动",
-      "cdescr": "拥堵路况进入安全模式；前车加速快或速度超过 20km/h 时进入普通模式"
+      "cdescr": "0: 手动。1: 拥堵时安全模式，交通恢复时普通模式。2: 低于 UseLaneLineSpeed 时经济模式，达到或超过该速度时普通模式。手动修改驾驶模式会暂停自动模式，直到切换本设置。"
     },
     {
       "group": "감속제어",

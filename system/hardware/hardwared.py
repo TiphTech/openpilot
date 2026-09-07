@@ -383,6 +383,7 @@ def hardware_thread(end_event, hw_queue) -> None:
       started_ts = None
       if off_ts is None:
         off_ts = time.monotonic()
+        params.put_int("OffroadStartTime", int(time.time()))
 
     # Offroad power monitoring
     voltage = None if peripheralState.pandaType == log.PandaState.PandaType.unknown else peripheralState.voltage

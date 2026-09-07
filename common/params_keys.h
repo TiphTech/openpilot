@@ -327,6 +327,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"SpeedFromPCM", {PERSISTENT, INT, "2"}},
     {"MaxTimeOffroadMin", {PERSISTENT, INT, "60"}},
+    {"OffroadStartTime", {CLEAR_ON_ONROAD_TRANSITION, INT}},
 
     {"DisableDM", {PERSISTENT, INT, "0"}},
     {"EnableConnect", {PERSISTENT, INT, "0"}},

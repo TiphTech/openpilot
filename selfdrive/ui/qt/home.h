@@ -29,11 +29,14 @@ private:
   void showEvent(QShowEvent *event) override;
   void hideEvent(QHideEvent *event) override;
   void refresh();
+  void updateShutdownCountdown();
 
   Params params;
 
   QTimer* timer;
+  QTimer* shutdown_timer;
   ElidedLabel* version;
+  QLabel* shutdown_countdown;
   QStackedLayout* center_layout;
   UpdateAlert *update_widget;
   OffroadAlert* alerts_widget;

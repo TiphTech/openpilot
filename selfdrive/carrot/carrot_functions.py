@@ -90,6 +90,9 @@ class CarrotPlanner:
     self.myDrivingMode = DrivingMode(self.params.get_int("MyDrivingMode"))
     self.myDrivingMode_last = self.myDrivingMode
     self.myDrivingMode_disable_auto = False
+    self.myDrivingModeAuto = self.params.get_int("MyDrivingModeAuto")
+    self.myDrivingModeAuto_last = self.myDrivingModeAuto
+    self.useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed")
     self.myEcoModeFactor = 0.9
     self.mySafeModeFactor = 0.8
     self.myHighModeFactor = 1.2
@@ -151,11 +154,16 @@ class CarrotPlanner:
       if myDrivingMode != self.myDrivingMode_last:
         self.myDrivingMode_disable_auto = True
       self.myDrivingMode_last = myDrivingMode
-      
+
       self.myDrivingModeAuto = self.params.get_int("MyDrivingModeAuto")
-      if self.myDrivingModeAuto > 0 and not self.myDrivingMode_disable_auto:
+      if self.myDrivingModeAuto != self.myDrivingModeAuto_last:
+        self.myDrivingMode_disable_auto = False
+        self.myDrivingModeAuto_last = self.myDrivingModeAuto
+      self.useLaneLineSpeed = self.params.get_int("UseLaneLineSpeed")
+
+      if self.myDrivingModeAuto == 1 and not self.myDrivingMode_disable_auto:
         self.myDrivingMode = self.drivingModeDetector.get_mode()
-      else:
+      elif self.myDrivingModeAuto != 2 or self.myDrivingMode_disable_auto:
         self.myDrivingMode = myDrivingMode
 
     if self.params_count == 10:
@@ -476,6 +484,10 @@ class CarrotPlanner:
     v_ego_kph = v_ego * CV.MS_TO_KPH
     v_ego_cluster = carstate.vEgoCluster
     v_ego_cluster_kph = v_ego_cluster * CV.MS_TO_KPH
+
+    # Keep MyDrivingMode untouched so a manual selection remains available.
+    if self.myDrivingModeAuto == 2 and not self.myDrivingMode_disable_auto and self.useLaneLineSpeed > 0:
+      self.myDrivingMode = DrivingMode.Eco if v_ego_kph < self.useLaneLineSpeed else DrivingMode.Normal
 
     leadOne = radarstate.leadOne
     self.mySafeFactor = 1.0
