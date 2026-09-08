@@ -2061,6 +2061,7 @@ public:
         active_lane_line = cs.getActiveLaneLine();
 
         v_cruise = car_state.getVCruiseCluster();
+        cruise_log = car_state.getLogCarrot().cStr();
         v_ego_real = car_state.getVEgo();
         v_ego_cluster = car_state.getVEgoCluster();
         v_ego = params.getBool("UseClusterSpeed") ? v_ego_cluster : v_ego_real;
@@ -2349,6 +2350,7 @@ public:
 #endif
     }
     char    auto_road_speed_log_last[128] = "";
+    std::string cruise_log = "";
     char    driving_mode_str_last[32] = "";
     int     gap_last = 0;
     char    gear_str_last[32] = "";
@@ -2477,7 +2479,6 @@ public:
         // Animate only speed-limit changes issued by the automatic road-limit mode.
         // Manual wheel buttons, GAP-long-press updates, and speed-camera overrides use
         // different log messages and intentionally stay unobtrusive.
-        const std::string cruise_log = car_state.getLogCarrot().cStr();
         constexpr const char *AUTO_ROAD_LIMIT_LOG = "Auto road limit ";
         const bool auto_road_speed_change = cruise_log.rfind(AUTO_ROAD_LIMIT_LOG, 0) == 0;
         if (auto_road_speed_change && strcmp(auto_road_speed_log_last, cruise_log.c_str()) != 0) {
