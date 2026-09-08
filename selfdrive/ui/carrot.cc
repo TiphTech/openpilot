@@ -2348,6 +2348,7 @@ public:
         }
 #endif
     }
+    char    auto_road_speed_log_last[128] = "";
     char    driving_mode_str_last[32] = "";
     int     gap_last = 0;
     char    gear_str_last[32] = "";
@@ -2472,6 +2473,21 @@ public:
         int cruise_y = by + 15;
         if(longActive) snprintf(cruise_speed, sizeof(cruise_speed), "%d", (int)std::lround((s->scene.is_metric) ? v_cruise : v_cruise * KM_TO_MILE));
 		    else sprintf(cruise_speed, "--");
+
+        // Animate only speed-limit changes issued by the automatic road-limit mode.
+        // Manual wheel buttons, GAP-long-press updates, and speed-camera overrides use
+        // different log messages and intentionally stay unobtrusive.
+        const std::string cruise_log = car_state.getLogCarrot().cStr();
+        constexpr const char *AUTO_ROAD_LIMIT_LOG = "Auto road limit ";
+        const bool auto_road_speed_change = cruise_log.rfind(AUTO_ROAD_LIMIT_LOG, 0) == 0;
+        if (auto_road_speed_change && strcmp(auto_road_speed_log_last, cruise_log.c_str()) != 0) {
+          snprintf(auto_road_speed_log_last, sizeof(auto_road_speed_log_last), "%s", cruise_log.c_str());
+          if (strcmp(cruise_speed, "--") != 0) {
+            ui_draw_text_a(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD);
+          }
+        } else if (!auto_road_speed_change) {
+          auto_road_speed_log_last[0] = '\0';
+        }
         ui_draw_text(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 
         // draw apply speed
