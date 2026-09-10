@@ -2351,7 +2351,6 @@ public:
     }
     char    auto_road_speed_log_last[128] = "";
     std::string cruise_log = "";
-    char    driving_mode_str_last[32] = "";
     int     gap_last = 0;
     char    gear_str_last[32] = "";
     int     blink_timer = 0;
@@ -2527,8 +2526,6 @@ public:
         int dy = by + 175;
         ui_fill_rect(s->vg, { dx - 55, dy - 38, 110, 48 }, mode_color, 15, 2);
         ui_draw_text(s, dx, dy - 2, driving_mode_str, 32, text_color, BOLD);
-        if (strcmp(driving_mode_str, driving_mode_str_last)) ui_draw_text_a(s, dx, dy, driving_mode_str, 30, COLOR_WHITE, BOLD);
-        strcpy(driving_mode_str_last, driving_mode_str);
 
         auto gps = (s->ublox_avaliable) ? sm["gpsLocationExternal"].getGpsLocationExternal() : sm["gpsLocation"].getGpsLocation();
         if (gps.getHasFix()) {
