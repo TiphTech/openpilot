@@ -756,13 +756,7 @@ class VCruiseCarrot:
             self._paddle_decel_active = True
         print("lfaButton")
       elif button_type == ButtonType.cancel:
-        self._paddle_decel_active = False
-        self._store_resume_cruise_speed(v_cruise_kph)
-        if self._cancel_button_mode in [1]:
-          self._lat_enabled = False
-          self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
-        self._cruise_cancel_state = True
-        #self._v_cruise_kph_at_brake = 0
+        v_cruise_kph = self._handle_cancel_button(CS, v_cruise_kph)
     else:
       if button_type == ButtonType.accelCruise:
         v_cruise_kph = button_kph
@@ -774,19 +768,15 @@ class VCruiseCarrot:
       elif button_type == ButtonType.gapAdjustCruise:
         if self._hyundai_camera_scc == 2 and self._displayed_road_limit_kph(CS) >= 30:
           v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, "Cruise speed set to road limit")
-        else:
-          self.params.put_int_nonblocking("MyDrivingMode", self.params.get_int("MyDrivingMode") % 4 + 1) # 1,2,3,4 (1:eco, 2:safe, 3:normal, 4:high speed)
       elif button_type == ButtonType.lfaButton:
-        useLaneLineSpeed = max(1, self.useLaneLineSpeed)
-        self.useLaneLineSpeedApply = useLaneLineSpeed if self.useLaneLineSpeedApply == 0 else 0
+        driving_mode = self.params.get_int("MyDrivingMode") % 4 + 1
+        self.params.put_int_nonblocking("MyDrivingMode", driving_mode)
+        if self.params.get_int("MyDrivingModeAuto") == 2:
+          self.params.put_int_nonblocking("MyDrivingModeAuto", 0)
+        self._add_log(f"Driving mode {driving_mode}")
 
       elif button_type == ButtonType.cancel:
-        self._cruise_cancel_state = True
-        self._store_resume_cruise_speed(v_cruise_kph)
-        self._lat_enabled = False
-        self._paddle_decel_active = False
-        #self.params.put_bool_nonblocking("ExperimentalMode", not self.params.get_bool("ExperimentalMode"))
-        self._add_log("Lateral " + "enabled" if self._lat_enabled else "disabled")
+        self._toggle_turn_speed_control()
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
@@ -850,6 +840,29 @@ class VCruiseCarrot:
     if resume_speed <= 0:
       resume_speed = max(self.v_ego_kph_set, self._cruise_speed_min)
     return float(np.clip(resume_speed, self._cruise_speed_min, self._cruise_speed_max))
+
+  def _handle_cancel_button(self, CS, v_cruise_kph):
+    """Pause or resume SCC while preserving the current lateral state."""
+    self._paddle_decel_active = False
+    if CS.cruiseState.enabled:
+      self._store_resume_cruise_speed(v_cruise_kph)
+      self._cruise_cancel_state = True
+      self._add_log(f"Cruise paused at {v_cruise_kph:.0f}")
+      return v_cruise_kph
+
+    v_cruise_kph = self._resume_cruise_speed()
+    self._queue_pcm_set_speed(v_cruise_kph)
+    self._store_resume_cruise_speed(v_cruise_kph)
+    self._cruise_cancel_state = False
+    self._activate_cruise = 1
+    self._cruise_ready = False
+    self._add_log(f"Cruise resumed at {v_cruise_kph:.0f}")
+    return v_cruise_kph
+
+  def _toggle_turn_speed_control(self):
+    enabled = self.params.get_int("TurnSpeedControlMode") != 1
+    self.params.put_int_nonblocking("TurnSpeedControlMode", 1 if enabled else 0)
+    self._add_log("Turn speed control ON" if enabled else "Turn speed control OFF")
 
   def _auto_speed_up(self, CS, v_cruise_kph, force=False):
     camera_zone_kph, camera_limit_is_adjusted = self._camera_zone_limit_info(CS)
