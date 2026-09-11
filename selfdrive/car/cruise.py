@@ -769,14 +769,10 @@ class VCruiseCarrot:
         if self._hyundai_camera_scc == 2 and self._displayed_road_limit_kph(CS) >= 30:
           v_cruise_kph = self._apply_road_limit_set_speed(CS, v_cruise_kph, "Cruise speed set to road limit")
       elif button_type == ButtonType.lfaButton:
-        driving_mode = self.params.get_int("MyDrivingMode") % 4 + 1
-        self.params.put_int_nonblocking("MyDrivingMode", driving_mode)
-        if self.params.get_int("MyDrivingModeAuto") == 2:
-          self.params.put_int_nonblocking("MyDrivingModeAuto", 0)
-        self._add_log(f"Driving mode {driving_mode}")
+        self._toggle_turn_speed_control()
 
       elif button_type == ButtonType.cancel:
-        self._toggle_turn_speed_control()
+        self._cycle_driving_mode()
 
     if self._paddle_mode > 0 and button_type in [ButtonType.paddleLeft, ButtonType.paddleRight]:  # paddle button
       if self._paddle_mode == 3:
@@ -863,6 +859,23 @@ class VCruiseCarrot:
     enabled = self.params.get_int("TurnSpeedControlMode") != 1
     self.params.put_int_nonblocking("TurnSpeedControlMode", 1 if enabled else 0)
     self._add_log("Turn speed control ON" if enabled else "Turn speed control OFF")
+
+  def _cycle_driving_mode(self):
+    mode_names = {1: "ECO", 2: "SAFE", 3: "NORMAL", 4: "FAST"}
+    if self.params.get_int("MyDrivingModeAuto") == 2:
+      self.params.put_int_nonblocking("MyDrivingModeAuto", 0)
+      self.params.put_int_nonblocking("MyDrivingMode", 1)
+      self._add_log("Driving mode ECO")
+      return
+
+    next_mode = self.params.get_int("MyDrivingMode") + 1
+    if next_mode > 4:
+      self.params.put_int_nonblocking("MyDrivingModeAuto", 2)
+      self._add_log("Driving mode AUTO")
+      return
+
+    self.params.put_int_nonblocking("MyDrivingMode", next_mode)
+    self._add_log(f"Driving mode {mode_names[next_mode]}")
 
   def _auto_speed_up(self, CS, v_cruise_kph, force=False):
     camera_zone_kph, camera_limit_is_adjusted = self._camera_zone_limit_info(CS)

@@ -2351,6 +2351,7 @@ public:
     }
     char    auto_road_speed_log_last[128] = "";
     char    turn_speed_control_log_last[128] = "";
+    char    driving_mode_auto_log_last[128] = "";
     std::string cruise_log = "";
     int     gap_last = 0;
     char    gear_str_last[32] = "";
@@ -2497,6 +2498,14 @@ public:
                          cruise_log == "Turn speed control ON" ? COLOR_GREEN : COLOR_WHITE, BOLD);
         } else if (!turn_speed_control_change) {
           turn_speed_control_log_last[0] = '\0';
+        }
+        constexpr const char *DRIVING_MODE_AUTO_LOG = "Driving mode AUTO";
+        const bool driving_mode_auto_selected = cruise_log == DRIVING_MODE_AUTO_LOG;
+        if (driving_mode_auto_selected && strcmp(driving_mode_auto_log_last, cruise_log.c_str()) != 0) {
+          snprintf(driving_mode_auto_log_last, sizeof(driving_mode_auto_log_last), "%s", cruise_log.c_str());
+          ui_draw_text_a(s, s->fb_w / 2, s->fb_h / 2 + 80, "AUTO", 70, COLOR_GREEN, BOLD);
+        } else if (!driving_mode_auto_selected) {
+          driving_mode_auto_log_last[0] = '\0';
         }
         ui_draw_text(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 
