@@ -1015,6 +1015,7 @@ class CarrotMan:
 
   def carrot_curve_speed_params(self):
     self.autoCurveSpeedFactor = self.params.get_int("AutoCurveSpeedFactor")*0.01
+    self.autoCurveSpeedAggressiveness = self.params.get_int("AutoCurveSpeedAggressiveness")*0.01
 
   def carrot_curve_speed(self, sm):
     self.carrot_curve_speed_params()
@@ -1023,7 +1024,8 @@ class CarrotMan:
     return self.vturn_speed(sm['carState'], sm)
 
   def vturn_speed(self, CS, sm):
-    result = curve_speed(sm['modelV2'], CS.vEgo, self.autoCurveSpeedFactor,
+    curve_sensitivity = self.autoCurveSpeedFactor / max(self.autoCurveSpeedAggressiveness, 0.01)
+    result = curve_speed(sm['modelV2'], CS.vEgo, curve_sensitivity,
                          self.carrot_serv.autoCurveSpeedLowerLimit,
                          speed_ratio=CS.vCluRatio, a_ego=CS.aEgo)
     return self.vision_curve_speed.update(result, time.monotonic(), model_time=sm.logMonoTime['modelV2'])
