@@ -350,10 +350,14 @@ class VCruiseCarrot:
       self.carrot_cmd = carrot_man.carrotCmd
       self.carrot_arg = carrot_man.carrotArg
     else:
+      self.nRoadLimitSpeed = 0
       self.xSpdLimit = 0
       self.xSpdDist = 0
       self.xSpdType = -1
       self.activeCarrot = 0
+      self.desiredSpeed = 250
+      self.carrot_cmd = ""
+      self.carrot_arg = ""
     if sm.alive['longitudinalPlan']:
       lp = sm['longitudinalPlan']
       self.xState = lp.xState
