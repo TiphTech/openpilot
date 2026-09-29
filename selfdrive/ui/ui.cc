@@ -2,6 +2,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
+
+#ifdef __linux__
+#include <dirent.h>
+#include <sched.h>
+#include <sys/resource.h>
+#endif
 
 #include <QtConcurrent>
 
@@ -13,6 +20,59 @@
 
 #define BACKLIGHT_DT 0.05
 #define BACKLIGHT_TS 10.00
+
+static void update_display_scheduling(bool onroad) {
+#ifdef __linux__
+  if (!Hardware::TICI()) {
+    return;
+  }
+
+  cpu_set_t cores;
+  CPU_ZERO(&cores);
+  for (int core = 0; core < 4; ++core) {
+    CPU_SET(core, &cores);
+  }
+
+  const bool core_six_online = util::read_file("/sys/devices/system/cpu/cpu6/online").find('1') == 0;
+  if (onroad && core_six_online) {
+    CPU_SET(6, &cores);
+  }
+
+  DIR *tasks = opendir("/proc/self/task");
+  if (tasks == nullptr) {
+    return;
+  }
+
+  const int priority = onroad ? 19 : 0;
+  sched_param normal_policy = {};
+  while (dirent *entry = readdir(tasks)) {
+    char *end = nullptr;
+    const long tid = std::strtol(entry->d_name, &end, 10);
+    if (tid <= 0 || end == nullptr || *end != '\0') {
+      continue;
+    }
+
+    sched_setscheduler(tid, SCHED_OTHER, &normal_policy);
+    if (onroad) {
+      setpriority(PRIO_PROCESS, tid, priority);
+    }
+
+    if (sched_setaffinity(tid, sizeof(cores), &cores) != 0) {
+      cpu_set_t little_cores;
+      CPU_ZERO(&little_cores);
+      for (int core = 0; core < 4; ++core) {
+        CPU_SET(core, &little_cores);
+      }
+      sched_setaffinity(tid, sizeof(little_cores), &little_cores);
+    }
+
+    if (!onroad) {
+      setpriority(PRIO_PROCESS, tid, priority);
+    }
+  }
+  closedir(tasks);
+#endif
+}
 
 static void update_sockets(UIState *s) {
   s->sm->update(0);
@@ -121,6 +181,11 @@ UIState::UIState(QObject *parent) : QObject(parent) {
 void UIState::update() {
   update_sockets(this);
   update_state(this);
+
+  const bool road_state_changed = scene.started != started_prev;
+  if (sm->frame == 1 || road_state_changed || sm->frame % (UI_FREQ / 2) == 0) {
+    update_display_scheduling(scene.started);
+  }
   updateStatus();
 
   if (sm->frame % 100 == 0)
