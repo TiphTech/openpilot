@@ -33,12 +33,23 @@ GearShifter = structs.CarState.GearShifter
 READY_COUNT_OK = 200
 
 
-def get_canfd_brake_lights(brake_msg, tcs_brake_light: int, brake_pressed: bool) -> bool:
-  # BRAKE.BRAKE_LIGHT covers hydraulic and SCC braking. TCS.BrakeLight state 1
-  # additionally carries the regenerative stop-lamp request; states 2 and 3
-  # are not an illuminated lamp and previously caused false UI indications.
+def get_canfd_brake_lights(brake_msg, tcs_brake_light: int, brake_pressed: bool,
+                           cruise_enabled: bool = False, gas_pressed: bool = False,
+                           v_ego: float = 0.0, a_ego: float = 0.0,
+                           scc_accel_request: float = 0.0) -> bool:
+  # The EV6 lamp bits can remain asserted during light SCC regulation. Qualify
+  # them with an actual SCC braking request and vehicle deceleration so the UI
+  # does not show a false stop-lamp state while cruising at steady speed.
+  if brake_pressed:
+    return True
+
   dedicated_brake_light = bool(brake_msg["BRAKE_LIGHT"]) if brake_msg is not None else False
-  return dedicated_brake_light or tcs_brake_light == 1 or (brake_msg is None and brake_pressed)
+  lamp_requested = dedicated_brake_light or tcs_brake_light == 1
+  if not cruise_enabled:
+    return lamp_requested
+
+  scc_braking = not gas_pressed and scc_accel_request < -0.5 and (a_ego < -0.15 or v_ego <= 1.0)
+  return lamp_requested and scc_braking
 
 
 def is_canfd_parking_brake_active(parking_brake_state: int) -> bool:
@@ -558,8 +569,6 @@ class CarState(CarStateBase):
     ret.vEgo, ret.aEgo = self.update_speed_kf(ret.vEgoRaw)
     ret.standstill = ret.wheelSpeeds.fl <= STANDSTILL_THRESHOLD and ret.wheelSpeeds.rr <= STANDSTILL_THRESHOLD
 
-    ret.brakeLights = get_canfd_brake_lights(self.brake, int(cp.vl["TCS"]["BrakeLight"]), ret.brakePressed)
-
     ret.steeringRateDeg = cp.vl["STEERING_SENSORS"]["STEERING_RATE"]
 
     # steering angle deg값이 이상함. mdps값이 더 신뢰가 가는듯.. torque steering 차량도 확인해야함.
@@ -630,6 +639,12 @@ class CarState(CarStateBase):
         ret.pcmCruiseGap = int(np.clip(cp_cruise_info.vl["SCC_CONTROL"]["DISTANCE_SETTING"], 1, 4))
       ret.cruiseState.standstill = cp_cruise_info.vl["SCC_CONTROL"]["InfoDisplay"] >= 4
       ret.cruiseState.speed = cp_cruise_info.vl["SCC_CONTROL"]["VSetDis"] * speed_factor
+
+    ret.brakeLights = get_canfd_brake_lights(
+      self.brake, int(cp.vl["TCS"]["BrakeLight"]), ret.brakePressed,
+      ret.cruiseState.enabled, ret.gasPressed, ret.vEgo, ret.aEgo,
+      float(cp_cruise_info.vl["SCC_CONTROL"]["aReqValue"]),
+    )
 
     speed_limit_cam = False
     corner = False
