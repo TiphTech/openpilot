@@ -3,7 +3,11 @@ from opendbc.car.hyundai.carstate import get_canfd_brake_lights
 
 def test_canfd_brake_lights_uses_dedicated_lamp_state():
   assert get_canfd_brake_lights({"BRAKE_LIGHT": 1}, 0, False)
-  assert not get_canfd_brake_lights({"BRAKE_LIGHT": 0}, 0, True)
+  assert get_canfd_brake_lights({"BRAKE_LIGHT": 0}, 0, True)
+
+
+def test_canfd_brake_pedal_remains_prioritized_with_scc():
+  assert get_canfd_brake_lights({"BRAKE_LIGHT": 0}, 0, True, True, False, 25.0, 0.0, 0.2)
 
 
 def test_canfd_brake_lights_uses_only_exact_tcs_lamp_state():
