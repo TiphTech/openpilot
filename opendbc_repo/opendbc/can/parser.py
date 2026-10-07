@@ -36,6 +36,7 @@ class MessageState:
   ignore_alive: bool = False
   ignore_checksum: bool = False
   ignore_counter: bool = False
+  require_exact_size: bool = False
   frequency: float = 0.0
   timeout_threshold: float = 1e5  # default to 1Hz threshold
   vals: list[float] = field(default_factory=list)
@@ -52,6 +53,8 @@ class MessageState:
       self.last_warning_log_nanos = last_update_nanos
 
   def parse(self, nanos: int, dat: bytes) -> bool:
+    if self.require_exact_size and len(dat) != self.size:
+      return False
     tmp_vals: list[float] = [0.0] * len(self.signals)
     checksum_failed = False
     counter_failed = False

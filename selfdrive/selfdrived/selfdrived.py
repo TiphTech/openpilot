@@ -110,6 +110,7 @@ class SelfdriveD:
     self.events = Events()
 
     self.initialized = False
+    self.model_startup_complete = False
     self.enabled = False
     self.active = False
     self.mismatch_counter = 0
@@ -312,13 +313,33 @@ class SelfdriveD:
           self.events.add(EventName.cameraFrameRate)
     if not REPLAY and self.rk.lagging:
       self.events.add(EventName.selfdrivedLagging)
+    pose = self.sm['livePose']
+    radar_errors = self.sm['radarState'].radarErrors
+    model_inputs_ready = (self.sm.all_checks(['modelV2', 'radarState', 'livePose', 'liveCalibration',
+                                             'liveParameters', 'longitudinalPlan', 'driverAssistance']) and
+                          pose.inputsOK and pose.sensorsOK and pose.posenetOK)
+    if self.enabled or model_inputs_ready:
+      self.model_startup_complete = True
+    startup_fault = (radar_errors.canError or radar_errors.radarFault or radar_errors.wrongConfig or
+                     radar_errors.radarUnavailableTemporary or
+                     (self.sm.seen['livePose'] and (not pose.sensorsOK or not pose.posenetOK)))
+    # C3 has no eGPU settling state. Bound initial dependency readiness to 30 s;
+    # faults after first readiness or engagement keep their normal disable path.
+    model_starting = (self.sm.frame * DT_CTRL < 30.0 and not self.model_startup_complete and not startup_fault)
+    if model_starting and not model_inputs_ready:
+      self.events.add(EventName.selfdriveInitializing)
     if not self.sm.valid['radarState']:
       if self.sm['radarState'].radarErrors.canError:
         self.events.add(EventName.canError)
       elif self.sm['radarState'].radarErrors.radarUnavailableTemporary:
         self.events.add(EventName.radarTempUnavailable)
-      else:
+      elif radar_errors.radarFault or radar_errors.wrongConfig:
         self.events.add(EventName.radarFault)
+      elif model_starting:
+        if EventName.selfdriveInitializing not in self.events.names:
+          self.events.add(EventName.selfdriveInitializing)
+      else:
+        self.events.add(EventName.commIssue)
     if not self.sm.valid['pandaStates']:
       self.events.add(EventName.usbError)
     if CS.canTimeout:
@@ -329,7 +350,7 @@ class SelfdriveD:
     # generic catch-all. ideally, a more specific event should be added above instead
     has_disable_events = self.events.contains(ET.NO_ENTRY) and (self.events.contains(ET.SOFT_DISABLE) or self.events.contains(ET.IMMEDIATE_DISABLE))
     no_system_errors = (not has_disable_events) or (len(self.events) == num_events)
-    if not self.sm.all_checks() and no_system_errors:
+    if not self.sm.all_checks() and no_system_errors and not model_starting:
       if not self.sm.all_alive():
         self.events.add(EventName.commIssue)
       elif not self.sm.all_freq_ok():
@@ -349,10 +370,14 @@ class SelfdriveD:
       self.logged_comm_issue = None
 
     if not self.CP.notCar:
-      if not self.sm['livePose'].posenetOK:
+      if self.sm.seen['livePose'] and not self.sm['livePose'].posenetOK:
         self.events.add(EventName.posenetInvalid)
-      if not self.sm['livePose'].inputsOK:
-        self.events.add(EventName.locationdTemporaryError)
+      if self.sm.seen['livePose'] and not self.sm['livePose'].inputsOK:
+        if model_starting and pose.sensorsOK and pose.posenetOK:
+          if EventName.selfdriveInitializing not in self.events.names:
+            self.events.add(EventName.selfdriveInitializing)
+        else:
+          self.events.add(EventName.locationdTemporaryError)
       if not self.sm['liveParameters'].valid and not TESTING_CLOSET and (not SIMULATION or REPLAY):
         self.events.add(EventName.paramsdTemporaryError)
 

@@ -267,6 +267,7 @@ typedef struct {
 extern uint16_t current_safety_mode;
 extern uint16_t current_safety_param;
 extern safety_config current_safety_config;
+static bool tx_msg_safety_check(const CANPacket_t *to_send, const CanMsg msg_list[], int len);
 
 int safety_fwd_hook(CANPacket_t* to_send);
 int set_safety_hooks(uint16_t mode, uint16_t param);

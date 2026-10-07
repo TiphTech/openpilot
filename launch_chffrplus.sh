@@ -92,6 +92,10 @@ function launch {
   # hardware specific init
   if [ -f /AGNOS ]; then
     agnos_init
+    if ! python3 "$DIR/common/build_time.py"; then
+      echo "System clock correction failed before build; recovery server remains available on 6999."
+      while true; do sleep 1; done
+    fi
   fi
 
   # write tmux scrollback to a file
