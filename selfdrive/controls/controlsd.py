@@ -21,6 +21,7 @@ from openpilot.selfdrive.controls.lib.latcontrol_pid import LatControlPID
 from openpilot.selfdrive.controls.lib.latcontrol_angle import LatControlAngle, STEER_ANGLE_SATURATION_THRESHOLD
 from openpilot.selfdrive.controls.lib.latcontrol_torque import LatControlTorque
 from openpilot.selfdrive.controls.lib.longcontrol import LongControl
+from openpilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate, lateral_vehicle_parameters
 
 
 from openpilot.common.realtime import DT_CTRL, DT_MDL
@@ -58,6 +59,8 @@ class Controls:
     self.steer_limited_by_controls = False
     self.curvature = 0.0
     self.desired_curvature = 0.0
+    self.lateral_startup = LateralStartupGate()
+    self.lateral_started = False
 
     self.pose_calibrator = PoseCalibrator()
     self.calibrated_pose: Pose | None = None
@@ -88,9 +91,10 @@ class Controls:
 
   def state_control(self):
     CS = self.sm['carState']
+    lateral_ready = self.lateral_startup.update(self.sm, CS, 'carState')
 
     # Update VehicleModel
-    lp = self.sm['liveParameters']
+    lp = self.sm['liveParameters'] if lateral_ready else lateral_vehicle_parameters(self.sm, self.CP)
     x = max(lp.stiffnessFactor, 0.1)
     sr = max(lp.steerRatio, 0.1) * self.params.get_float("SteerRatioRate") / 100.0
     custom_sr = self.params.get_float("CustomSR") / 10.0
@@ -124,6 +128,7 @@ class Controls:
     CC.latActive = ((self.sm['selfdriveState'].active or lateral_enabled) and CS.latEnabled and
                     not CS.steerFaultTemporary and not CS.steerFaultPermanent and not standstill)
     CC.latActive = self.carrot_controls.lat_suspend_control(CS, CC.latActive)
+    CC.latActive = CC.latActive and lateral_ready
     CC.longActive = CC.enabled and not any(e.overrideLongitudinal for e in self.sm['onroadEvents']) and self.CP.openpilotLongitudinalControl
 
     actuators = CC.actuators
@@ -136,6 +141,9 @@ class Controls:
 
     if not CC.latActive:
       self.LaC.reset()
+    if CC.latActive and not self.lateral_started:
+      self.desired_curvature = self.curvature
+      self.lateral_started = True
     if not CC.longActive:
       self.LoC.reset()
 

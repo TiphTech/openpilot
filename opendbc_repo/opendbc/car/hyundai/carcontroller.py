@@ -139,6 +139,7 @@ class CarController(CarControllerBase):
     self.button_spam3 = 1
 
     self.apply_angle_last = 0
+    self.steering_template_ready = False
     self.lkas_max_torque = 0
     self.angle_max_torque = 250
     self.prev_abs_angle_error = 0.0
@@ -159,6 +160,15 @@ class CarController(CarControllerBase):
     self.steerDeltaDownOrg = self.steerDeltaDown = self.steerDeltaDownLC = self.params.STEER_DELTA_DOWN
 
   def update(self, CC, CS, now_nanos):
+
+    if not self.steering_template_ready and self.CP.flags & HyundaiFlags.CANFD and self.CP.flags & HyundaiFlags.CANFD_CAMERA_SCC:
+      template = CS.lfa_alt if self.CP.flags & HyundaiFlags.ANGLE_CONTROL else CS.lfa
+      self.steering_template_ready = template is not None
+      if not self.steering_template_ready and CC.latActive:
+        # Keep the torque history inactive until the first camera TX template.
+        CC = CC.as_builder()
+        CC.latActive = False
+        CC = CC.as_reader()
 
     if self.frame % 50 == 0:
       params = Params()

@@ -21,6 +21,7 @@ from opendbc.safety import ALTERNATIVE_EXPERIENCE
 from openpilot.selfdrive.pandad import can_capnp_to_list, can_list_to_can_capnp
 from openpilot.selfdrive.car.cruise import VCruiseCarrot
 from openpilot.selfdrive.car.car_specific import MockCarState
+from openpilot.selfdrive.controls.lib.lateral_readiness import LateralStartupGate
 
 REPLAY = "REPLAY" in os.environ
 
@@ -66,7 +67,9 @@ class Car:
 
   def __init__(self, CI=None, RI=None) -> None:
     self.can_sock = messaging.sub_sock('can', timeout=20)
-    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents', 'carrotMan', 'longitudinalPlan', 'radarState', 'modelV2', 'drivingModelData'])
+    self.sm = messaging.SubMaster(['pandaStates', 'carControl', 'onroadEvents', 'carrotMan', 'longitudinalPlan',
+                                   'radarState', 'modelV2', 'drivingModelData', 'liveParameters', 'livePose',
+                                   'selfdriveState', 'lateralPlan'])
     self.pm = messaging.PubMaster(['sendcan', 'carState', 'carParams', 'carOutput', 'liveTracks'])
 
     self.can_rcv_cum_timeout_counter = 0
@@ -74,6 +77,7 @@ class Car:
     self.CC_prev = car.CarControl.new_message()
     self.CS_prev = car.CarState.new_message()
     self.initialized_prev = False
+    self.lateral_startup = LateralStartupGate()
 
     self.last_actuators_output = structs.CarControl.Actuators()
 
@@ -268,6 +272,14 @@ class Car:
       self.params.put_bool_nonblocking("ControlsReady", True)
 
     if self.sm.all_alive(['carControl']):
+      lateral_ready = self.lateral_startup.update(self.sm, CS, 'carControl')
+      if CC.latActive and not lateral_ready:
+        CC = CC.as_builder()
+        CC.latActive = False
+        CC.actuators.torque = 0.0
+        CC.actuators.steeringAngleDeg = CS.steeringAngleDeg
+        CC.actuators.curvature = 0.0
+        CC = CC.as_reader()
       # send car controls over can
       now_nanos = self.can_log_mono_time if REPLAY else int(time.monotonic() * 1e9)
       MD = self.sm['modelV2'] if self.sm.valid['modelV2'] else None
