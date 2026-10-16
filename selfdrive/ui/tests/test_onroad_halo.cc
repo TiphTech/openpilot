@@ -88,13 +88,19 @@ int main(int argc, char **argv) {
   for (int i = 0; i < 60; ++i) render(QSize(2160, 1080), combined, i / 20.0);
   std::cout << "Halo pixel checks passed; CPU image rendering: " << timer.elapsed() / 60.0 << " ms/frame\n";
   if (argc > 2 && QString(argv[2]) == "--gpu") {
+    QSurfaceFormat format;
+    format.setRenderableType(QSurfaceFormat::OpenGLES);
+    format.setVersion(3, 0);
+    QSurfaceFormat::setDefaultFormat(format);
     QGuiApplication app(argc, argv);
     QOpenGLContext context;
+    context.setFormat(format);
     if (!context.create()) return 2;
     QOffscreenSurface surface;
     surface.setFormat(context.format());
     surface.create();
     if (!context.makeCurrent(&surface)) return 2;
+    std::cout << "Renderer: " << context.functions()->glGetString(GL_RENDERER) << std::endl;
     QOpenGLFramebufferObject frame(2160, 1080, QOpenGLFramebufferObject::CombinedDepthStencil);
     frame.bind();
     QOpenGLPaintDevice device(2160, 1080);
@@ -107,6 +113,10 @@ int main(int argc, char **argv) {
       context.functions()->glFinish();
     }
     std::cout << "GPU rendering: " << timer.elapsed() / 60.0 << " ms/frame\n";
-    assert(frame.toImage().save(output + "/halo-gpu.png"));
+    const QImage gpu = frame.toImage();
+    assert(gpu.pixelColor(1080, 5).red() > 240);
+    assert(gpu.pixelColor(1080, 1075).green() > 190);
+    assert(gpu.pixelColor(1080, 540) == QColor(Qt::black));
+    assert(gpu.save(output + "/halo-gpu.png"));
   }
 }

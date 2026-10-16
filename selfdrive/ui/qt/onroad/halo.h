@@ -45,13 +45,14 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
   colors.setColorAt(1 - corner + blend, right);
   colors.setColorAt(1, right);
 
-  // Parent and inset camera share one bounded cache, not full-screen work every frame.
+  // Parent and camera share two bounded blink-phase caches, not per-frame image work.
   struct Cache {
     QSize size;
     QColor base, top, left, right;
     QImage opaque, fog;
   };
-  static Cache cache;
+  static Cache caches[2];
+  Cache &cache = caches[(state.left_blinker || state.right_blinker) && blink_on ? 1 : 0];
   const QSize size = bounds.size().toSize();
   if (cache.size != size || cache.base != base || cache.top != top || cache.left != left || cache.right != right) {
     cache.size = size;
@@ -100,7 +101,10 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
     cache.fog.fill(Qt::transparent);
     {
       QPainter p(&cache.fog);
+      const QRect center = frame.adjusted(total, total, -total, -total).toAlignedRect();
+      p.setClipRegion(QRegion(frame.toRect()).subtracted(QRegion(center)));
       p.fillRect(frame, colors);
+      p.setClipping(false);
       p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
       p.drawImage(0, 0, mask);
     }
