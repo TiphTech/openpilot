@@ -93,6 +93,7 @@ void OnroadWindow::updateState(const UIState &s) {
   }
   nvg->updateState(s);
 
+  const SubMaster &sm = *s.sm;
   update();
   if (true) { 
       int carrot_display = 0;
