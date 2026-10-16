@@ -93,34 +93,6 @@ void OnroadWindow::updateState(const UIState &s) {
   }
   nvg->updateState(s);
 
-  QColor bgColor = bg_colors[s.status];
-  QColor bgColor_long = bg_colors[s.status];
-  const SubMaster& sm = *(s.sm);
-  const auto car_control = sm["carControl"].getCarControl();
-
-  //if (s.status == STATUS_DISENGAGED && car_control.getLatActive()) {
-  //    bgColor = bg_colors[STATUS_LAT_ACTIVE];
-  //}
-  const auto car_state = sm["carState"].getCarState();
-  const bool cruise_engaged = car_state.getCruiseState().getEnabled();
-  const bool lat_active = car_control.getLatActive();
-  const bool brake_lights = car_state.getBrakeLights();
-
-  const QColor inactive_color = QColor(0x00, 0x00, 0x00, 0xf1);
-  const QColor cruise_color = QColor(0x14, 0xb8, 0x50, 0xf1);
-  const QColor lat_color = QColor(0x14, 0xb8, 0x50, 0xf1);
-  const QColor brake_color = QColor(0xff, 0x1e, 0x16, 0xf1);
-
-  // Inverted assignment requested:
-  // top bar shows longitudinal state, bottom bar shows lateral state.
-  bgColor = brake_lights ? brake_color : cruise_engaged ? cruise_color : inactive_color;
-  bgColor_long = lat_active ? lat_color : inactive_color;
-  if (bg != bgColor || bg_long != bgColor_long) {
-    // repaint border
-    bg = bgColor;
-    bg_long = bgColor_long;
-    //update();
-  }
   update();
   if (true) { 
       int carrot_display = 0;
@@ -312,11 +284,8 @@ void OnroadWindow::offroadTransition(bool offroad) {
 
 void OnroadWindow::paintEvent(QPaintEvent *event) {
     QPainter p(this);
-    p.beginNativePainting();
-    UIState* s = uiState();
-    extern void ui_draw_border(UIState * s, int w, int h, QColor bg, QColor bg_long);
-    ui_draw_border(s, width(), height(), bg, bg_long);
-    p.endNativePainting();
+    p.fillRect(rect(), Qt::black);
+    paint_onroad_halo(p, rect(), onroad_halo_state(*uiState()), millis_since_boot() / 1000.0);
 }
 
 

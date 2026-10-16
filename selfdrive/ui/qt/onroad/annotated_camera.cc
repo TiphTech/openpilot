@@ -12,6 +12,7 @@
 #include "common/swaglog.h"
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/carrot.h"
+#include "selfdrive/ui/qt/onroad/onroad_home.h"
 
 // Window that shows camera view and variety of info drawn on top
 AnnotatedCameraWidget::AnnotatedCameraWidget(VisionStreamType type, QWidget *parent)
@@ -198,6 +199,13 @@ void AnnotatedCameraWidget::paintEvent(QPaintEvent *event) {
   painter.setPen(Qt::NoPen);
 
   model.draw(painter, rect());
+  // Continue the parent's halo into the camera, below HUD text and alerts.
+  QWidget *halo_owner = parentWidget();
+  while (halo_owner && !qobject_cast<OnroadWindow *>(halo_owner)) halo_owner = halo_owner->parentWidget();
+  const QPoint origin = halo_owner ? mapTo(halo_owner, QPoint(0, 0)) : QPoint(0, 0);
+  const QSize halo_size = halo_owner ? halo_owner->size() : size();
+  const QRectF halo_bounds(-origin.x(), -origin.y(), halo_size.width(), halo_size.height());
+  paint_onroad_halo(painter, halo_bounds, onroad_halo_state(*s), start_draw_t / 1000.0);
   painter.beginNativePainting();
   try {
       ui_draw(s, &model, width(), height());      

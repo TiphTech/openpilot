@@ -1268,8 +1268,6 @@ public:
 
     }
 };
-bool _right_blinker = false;
-bool _left_blinker = false;
 class DesireDrawer : ModelDrawer {
 protected:
     int icon_size = 256;
@@ -1329,15 +1327,11 @@ public:
         bool left_blinker = car_state.getLeftBlinker() || atc_type=="fork left" || atc_type =="turn left" || atc_type == "atc left";
         bool right_blinker = car_state.getRightBlinker() || atc_type=="fork right" || atc_type =="turn right" || atc_type == "atc right";
 
-        _right_blinker = false;
-        _left_blinker = false;
         if (blinker_timer <= 8) {
             if (right_blinker) {
-		_right_blinker = true;
                 ui_draw_image(s, { x - icon_size / 2, y - icon_size / 2, icon_size, icon_size }, "ic_blinker_r", 1.0f);
             }
             if (left_blinker) {
-		_left_blinker = true;
                 ui_draw_image(s, { x - icon_size / 2, y - icon_size / 2, icon_size, icon_size }, "ic_blinker_l", 1.0f);
             }
         }
@@ -3164,48 +3158,19 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
   glDisable(GL_BLEND);
 }
 
-class BorderDrawer {
-protected:
-    float   a_ego_width = 0.0;
-public:
-    void draw(UIState *s, int w, int h, NVGcolor bg, NVGcolor bg_long) {
-        NVGcontext* vg = s->vg_border;
-
-        ui_fill_rect(vg, { 0,0, w, h / 2  - 100}, bg, 15);
-        ui_fill_rect(vg, { 0, h / 2 + 100, w, h }, bg_long, 15);
-
-        ui_fill_rect(vg, {w - 50, h/2 - 95, 50, 190}, (_right_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
-        ui_fill_rect(vg, {0, h/2 - 95, 50, 190}, (_left_blinker)?COLOR_ORANGE:COLOR_BLACK, 15);
+OnroadHaloState onroad_halo_state(const UIState &s) {
+    OnroadHaloState state;
+    if (!s.scene.started) return state;
+    const SubMaster &sm = *s.sm;
+    if (sm.alive("carState") && sm.valid("carState")) {
+        const auto cs = sm["carState"].getCarState();
+        state.cruise = cs.getCruiseState().getEnabled();
+        state.braking = cs.getBrakeLights();
+        state.left_blinker = cs.getLeftBlinker();
+        state.right_blinker = cs.getRightBlinker();
     }
-};
-NVGcolor QColorToNVGcolor(const QColor& color) {
-    return nvgRGBAf(color.redF(), color.greenF(), color.blueF(), color.alphaF());
-}
-BorderDrawer borderDrawer;
-void ui_draw_border(UIState* s, int w, int h, QColor bg, QColor bg_long) {
-
-    if (s->vg_border == nullptr) {
-        s->vg_border = nvgCreate(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
-        std::pair<const char*, const char*> fonts[] = {
-            {"KaiGenGothicKR-Bold", "../assets/addon/font/KaiGenGothicKR-Bold.ttf"},
-            {"Inter-Bold", "../assets/fonts/Inter-Bold.ttf"},
-        };
-        for (auto [name, file] : fonts) {
-            int font_id = nvgCreateFont(s->vg_border, name, file);
-            assert(font_id >= 0);
-        }
-    }
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glViewport(0, 0, w, h);
-    nvgBeginFrame(s->vg_border, w, h, 1.0f);
-	nvgScissor(s->vg_border, 0, 0, w, h);
-
-    borderDrawer.draw(s, w, h, QColorToNVGcolor(bg), QColorToNVGcolor(bg_long));
-
-    nvgResetScissor(s->vg_border);
-    nvgEndFrame(s->vg_border);
-    glDisable(GL_BLEND);
+    state.lateral = sm.alive("carControl") && sm.valid("carControl") && sm["carControl"].getCarControl().getLatActive();
+    return state;
 }
 void ui_draw_alert(UIState* s) {
     if (alert.size != cereal::SelfdriveState::AlertSize::NONE) {
