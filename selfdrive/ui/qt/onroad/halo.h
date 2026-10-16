@@ -70,6 +70,11 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
     outside.addRoundedRect(frame, radius, radius);
     inside.addRoundedRect(frame.adjusted(opaque, opaque, -opaque, -opaque), radius - opaque, radius - opaque);
     QPainterPath solid = outside.subtracted(inside);
+    QPainterPath fog_inside;
+    // Overlap by one texture pixel so bilinear sampling cannot leave a dark seam.
+    const double fog_inset = std::max(0.0, opaque - 1);
+    fog_inside.addRoundedRect(frame.adjusted(fog_inset, fog_inset, -fog_inset, -fog_inset),
+                              radius - fog_inset, radius - fog_inset);
 
     cache.opaque = QImage(texture_size, QImage::Format_ARGB32_Premultiplied);
     cache.opaque.fill(Qt::transparent);
@@ -83,7 +88,7 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
     {
       QPainter p(&mask);
       p.setRenderHint(QPainter::Antialiasing);
-      p.setClipPath(inside);
+      p.setClipPath(fog_inside);
       const auto band = [&](const QRectF &area, QPointF from, QPointF to) {
         QLinearGradient fade(from, to);
         fade.setColorAt(0, QColor(255, 255, 255, 255));
