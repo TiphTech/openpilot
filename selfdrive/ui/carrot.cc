@@ -9,6 +9,7 @@
 #include <QJsonValue>
 #include <QJsonArray>
 #include <QImage>
+#include "selfdrive/ui/qt/onroad/speed_limit_animation.h"
 
 //#define __TEST
 //#define __UI_TEST
@@ -2343,7 +2344,7 @@ public:
         }
 #endif
     }
-    char    auto_road_speed_log_last[128] = "";
+    RoadLimitSpeedAnimation road_limit_speed_animation;
     char    turn_speed_control_log_last[128] = "";
     char    driving_mode_auto_log_last[128] = "";
     std::string cruise_log = "";
@@ -2407,6 +2408,10 @@ public:
     }
 
     void drawHud(UIState* s) {
+        const SubMaster& sm = *(s->sm);
+        const auto carState = sm["carState"].getCarState();
+        const float posted_limit_kph = apn_speed_camera_warning_active ? xSpdLimit :
+                                       carState.getSpeedLimit() > 0 ? carState.getSpeedLimit() : nRoadLimitSpeed;
         deviceStateCritical = makeDeviceInfo(s);
         int show_device_state = params.getInt("ShowDeviceState");
         if (deviceStateCritical) show_device_state = 1;
@@ -2471,18 +2476,15 @@ public:
         if(longActive) snprintf(cruise_speed, sizeof(cruise_speed), "%d", (int)std::lround((s->scene.is_metric) ? v_cruise : v_cruise * KM_TO_MILE));
 		    else sprintf(cruise_speed, "--");
 
-        // Animate only speed-limit changes issued by the automatic road-limit mode.
-        // Manual wheel buttons, GAP-long-press updates, and speed-camera overrides use
-        // different log messages and intentionally stay unobtrusive.
-        constexpr const char *AUTO_ROAD_LIMIT_LOG = "Auto road limit ";
-        const bool auto_road_speed_change = cruise_log.rfind(AUTO_ROAD_LIMIT_LOG, 0) == 0;
-        if (auto_road_speed_change && strcmp(auto_road_speed_log_last, cruise_log.c_str()) != 0) {
-          snprintf(auto_road_speed_log_last, sizeof(auto_road_speed_log_last), "%s", cruise_log.c_str());
-          if (strcmp(cruise_speed, "--") != 0) {
-            ui_draw_text_a(s, cruise_x, cruise_y, cruise_speed, 60, COLOR_GREEN, BOLD);
-          }
-        } else if (!auto_road_speed_change) {
-          auto_road_speed_log_last[0] = '\0';
+        const auto automatic_target = road_limit_speed_animation.update(
+          (int)std::lround(posted_limit_kph), QString::fromStdString(cruise_log),
+          params.getInt("AutoRoadSpeedAdjust") > 0, carState.getCruiseState().getEnabled(),
+          speed_camera_warning_active, sm.alive("carState") && sm.valid("carState") && sm.alive("carrotMan"),
+          millis_since_boot());
+        if (automatic_target) {
+          char target_speed[32];
+          snprintf(target_speed, sizeof(target_speed), "%d", (int)std::lround(*automatic_target * (s->scene.is_metric ? 1.0 : KM_TO_MILE)));
+          ui_draw_text_a(s, cruise_x, cruise_y, target_speed, 60, COLOR_GREEN, BOLD);
         }
         constexpr const char *TURN_SPEED_CONTROL_LOG = "Turn speed control ";
         const bool turn_speed_control_change = cruise_log.rfind(TURN_SPEED_CONTROL_LOG, 0) == 0;
@@ -2521,7 +2523,6 @@ public:
 			      ui_draw_text(s, apply_x, apply_y, apply_speed_str, 50, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
             ui_draw_text(s, apply_x, apply_y - 50, "eco", 30, textColor, BOLD, 1.0, 5.0, COLOR_BLACK, COLOR_BLACK);
 		    }
-        const SubMaster& sm = *(s->sm);
 
         // draw gap info
         char driving_mode_str[32] = "연비";
@@ -2564,7 +2565,6 @@ public:
         dx = bx + 305;
         dy = by + 60;
         //const SubMaster& sm = *(s->sm);
-        auto carState = sm["carState"].getCarState();
         if (carState.getGearShifter() == cereal::CarState::GearShifter::UNKNOWN) strcpy(gear_str, "U");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::PARK) strcpy(gear_str, "P");
         else if (carState.getGearShifter() == cereal::CarState::GearShifter::DRIVE) {
@@ -2613,17 +2613,8 @@ public:
 #endif
 
         if (true) {
-            int disp_speed = 0;
-            bool camera_limit = apn_speed_camera_warning_active;
-            bool stock_camera_limit = carState.getSpeedLimit() > 0;
             const bool show_speed_camera_icon = speed_camera_warning_active;
-            if (camera_limit || stock_camera_limit) {
-                float camera_speed_limit = camera_limit ? xSpdLimit : carState.getSpeedLimit();
-                disp_speed = (int)(camera_speed_limit * ((s->scene.is_metric) ? 1 : KM_TO_MILE) + 0.5);
-            } else {
-                disp_speed = nRoadLimitSpeed;
-                disp_speed = (int)(disp_speed * ((s->scene.is_metric) ? 1.0 : KM_TO_MILE) + 0.5);
-            }
+            const int disp_speed = (int)std::lround(posted_limit_kph * (s->scene.is_metric ? 1.0 : KM_TO_MILE));
 
             int sign_x = 150;
             int sign_y = 150;

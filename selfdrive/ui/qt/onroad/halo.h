@@ -16,6 +16,8 @@ struct OnroadHaloState {
   bool right_blinker = false;
 };
 
+constexpr int ONROAD_HALO_FRAME_MARGIN = 12;
+
 inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
                               const OnroadHaloState &state, double seconds) {
   if (bounds.width() <= 0 || bounds.height() <= 0) return;
@@ -65,7 +67,7 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
     const QRectF frame(QPointF(0, 0), texture_size);
     colors.setCenter(frame.center());
     const double scale = std::min(texture_size.height(), texture_size.width()) / 1080.0;
-    const double opaque = std::ceil(27 * scale), total = 3 * opaque, radius = std::ceil(34 * scale);
+    const double opaque = std::ceil(12 * scale), total = std::ceil(60 * scale), radius = std::ceil(28 * scale);
     QPainterPath outside, inside;
     outside.addRoundedRect(frame, radius, radius);
     inside.addRoundedRect(frame.adjusted(opaque, opaque, -opaque, -opaque), radius - opaque, radius - opaque);
@@ -92,8 +94,11 @@ inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,
       const auto band = [&](const QRectF &area, QPointF from, QPointF to) {
         QLinearGradient fade(from, to);
         fade.setColorAt(0, QColor(255, 255, 255, 255));
-        fade.setColorAt(1.0 / 3, QColor(255, 255, 255, 255));
-        fade.setColorAt(2.0 / 3, QColor(255, 255, 255, 128));
+        const double start = opaque / total;
+        fade.setColorAt(start, QColor(255, 255, 255, 255));
+        fade.setColorAt(start + (1 - start) * 0.25, QColor(255, 255, 255, 180));
+        fade.setColorAt(start + (1 - start) * 0.5, QColor(255, 255, 255, 90));
+        fade.setColorAt(start + (1 - start) * 0.75, QColor(255, 255, 255, 20));
         fade.setColorAt(1, QColor(255, 255, 255, 0));
         p.fillRect(area, fade);
       };

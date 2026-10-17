@@ -37,11 +37,12 @@ int main(int argc, char **argv) {
     const QColor edge = green.pixelColor(cx, 5);
     assert(edge.alpha() == 255 && edge.green() > 190 && edge.red() == 0);
     assert(green.pixelColor(cx, cy).alpha() == 0);
-    const double opaque = std::min(size.width(), size.height()) / 1080.0 * 27;
+    const double scale = std::min(size.width(), size.height()) / 1080.0;
+    const double opaque = scale * 12;
     for (int y = 2; y < static_cast<int>(opaque) - 1; ++y) assert(green.pixelColor(cx, y).alpha() == 255);
-    const int half_fade = static_cast<int>(opaque * 2);
-    assert(green.pixelColor(cx, half_fade).alpha() > 90 && green.pixelColor(cx, half_fade).alpha() < 170);
-    assert(green.pixelColor(cx, static_cast<int>(opaque * 3 + 8)).alpha() == 0);
+    const int half_fade = static_cast<int>(scale * 36);
+    assert(green.pixelColor(cx, half_fade).alpha() > 65 && green.pixelColor(cx, half_fade).alpha() < 120);
+    assert(green.pixelColor(cx, static_cast<int>(scale * 60 + 8)).alpha() == 0);
     assert(render(size, lateral).pixelColor(cx, 5).blue() > 190);
     assert(render(size, cruise).pixelColor(cx, 5).red() == 25);
     const auto red = render(size, braking);
@@ -57,12 +58,13 @@ int main(int argc, char **argv) {
 
     // Translated Qt rasterization may round coverage by a few alpha levels.
     // The camera inset must still match the parent's geometry, not a second border.
-    QImage inset(size - QSize(60, 60), QImage::Format_ARGB32_Premultiplied);
+    const int margin = ONROAD_HALO_FRAME_MARGIN;
+    QImage inset(size - QSize(2 * margin, 2 * margin), QImage::Format_ARGB32_Premultiplied);
     inset.fill(Qt::transparent);
     QPainter p(&inset);
-    paint_onroad_halo(p, QRectF(-30, -30, size.width(), size.height()), combined, 0);
+    paint_onroad_halo(p, QRectF(-margin, -margin, size.width(), size.height()), combined, 0);
     p.end();
-    const auto crop = render(size, combined).copy(30, 30, inset.width(), inset.height());
+    const auto crop = render(size, combined).copy(margin, margin, inset.width(), inset.height());
     int max_delta = 0;
     for (int y = 0; y < inset.height(); ++y) {
       for (int x = 0; x < inset.width(); ++x) {

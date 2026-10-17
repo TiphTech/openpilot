@@ -601,7 +601,9 @@ class VCruiseCarrot:
     self.road_limit_kph = road_limit_kph
     self._last_auto_applied_road_limit = road_limit_kph
     self._last_auto_apply_frame = self.frame
-    self._add_log(f"{log_prefix} {road_limit_kph:.0f}->{v_cruise_kph:.0f}")
+    # The UI announces the final automatic target once, not the first ramp step.
+    logged_speed_kph = target_kph if log_prefix.startswith("Auto road limit ") else v_cruise_kph
+    self._add_log(f"{log_prefix} {road_limit_kph:.0f}->{logged_speed_kph:.0f}")
     return v_cruise_kph
 
   def _carrot_command(self, CS, v_cruise_kph, button_type, long_pressed):

@@ -38,7 +38,7 @@ public:
 
 OnroadWindow::OnroadWindow(QWidget *parent) : QOpenGLWidget(parent) {
   QVBoxLayout *main_layout  = new QVBoxLayout(this);
-  main_layout->setMargin(UI_BORDER_SIZE);
+  main_layout->setMargin(ONROAD_HALO_FRAME_MARGIN);
   //main_layout->setContentsMargins(UI_BORDER_SIZE, 0, UI_BORDER_SIZE, 0);
 
   QStackedLayout *stacked_layout = new QStackedLayout;
@@ -166,9 +166,10 @@ void OnroadWindow::updateState(const UIState &s) {
 }
 
 void OnroadWindow::mousePressEvent(QMouseEvent* e) {
-  int x = e->x();
-  int y = height() - e->y();
-  int ey = e->y();
+  const QPoint camera_pos = nvg->mapFrom(this, e->pos());
+  int x = camera_pos.x();
+  int y = nvg->height() - camera_pos.y();
+  int ey = camera_pos.y();
   printf("x=%d, y=%d, ey=%d\n", x, y, ey);
   double now = millis_since_boot();
   static double last_click_time = 0;
@@ -222,7 +223,7 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
   else {
     const int sidebar_open_x_min = width() / 4;
     const int sidebar_open_x_max = width() * 3 / 4;
-    if (x < sidebar_open_x_min || x > sidebar_open_x_max) {
+    if (e->x() < sidebar_open_x_min || e->x() > sidebar_open_x_max) {
       e->accept();
       return;
     }
