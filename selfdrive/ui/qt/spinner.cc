@@ -1,6 +1,7 @@
 #include "selfdrive/ui/qt/spinner.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -17,11 +18,12 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QGridLayout>
+#include <QLinearGradient>
 #include <QPainter>
+#include <QPainterPath>
 #include <QString>
 #include <QStringList>
 #include <QTimer>
-#include <QTransform>
 #include <QVBoxLayout>
 
 #include "system/hardware/hw.h"
@@ -76,38 +78,31 @@ static QString spinnerFontFamily() {
   return families.isEmpty() ? QStringLiteral("Inter") : families.first();
 }
 
-TrackWidget::TrackWidget(QWidget *parent) : QWidget(parent) {
-  setAttribute(Qt::WA_OpaquePaintEvent);
-  setFixedSize(spinner_size);
-
-  // pre-compute all the track imgs. make this a gif instead?
-  QPixmap comma_img = loadPixmap("../assets/img_spinner_comma.png", spinner_size);
-  QPixmap track_img = loadPixmap("../assets/img_spinner_track.png", spinner_size);
-
-  QTransform transform(1, 0, 0, 1, width() / 2, height() / 2);
-  QPixmap pm(spinner_size);
-  QPainter p(&pm);
-  p.setRenderHint(QPainter::SmoothPixmapTransform);
-  for (int i = 0; i < track_imgs.size(); ++i) {
-    p.resetTransform();
-    p.fillRect(0, 0, spinner_size.width(), spinner_size.height(), Qt::black);
-    p.drawPixmap(0, 0, comma_img);
-    p.setTransform(transform.rotate(360 / spinner_fps));
-    p.drawPixmap(-width() / 2, -height() / 2, track_img);
-    track_imgs[i] = pm.copy();
-  }
-
-  m_anim.setDuration(1000);
-  m_anim.setStartValue(0);
-  m_anim.setEndValue(int(track_imgs.size() -1));
-  m_anim.setLoopCount(-1);
-  m_anim.start();
-  connect(&m_anim, SIGNAL(valueChanged(QVariant)), SLOT(update()));
+KiaLoadingWidget::KiaLoadingWidget(QWidget *parent) : QWidget(parent) {
+  setFixedSize(loading_image_size);
+  kia_image = loadPixmap("../assets/kia.png", loading_image_size);
+  animation_clock.start();
+  animation_timer.setInterval(33);
+  connect(&animation_timer, &QTimer::timeout, this, [this]() { update(); });
+  animation_timer.start();
 }
 
-void TrackWidget::paintEvent(QPaintEvent *event) {
+void KiaLoadingWidget::paintEvent(QPaintEvent *event) {
   QPainter painter(this);
-  painter.drawPixmap(0, 0, track_imgs[m_anim.currentValue().toInt()]);
+  painter.setRenderHint(QPainter::SmoothPixmapTransform);
+  painter.drawPixmap(rect(), kia_image);
+
+  const double phase = std::fmod(animation_clock.elapsed() / 3600.0, 1.0);
+  const double sweep_x = phase * (width() * 1.4) - width() * 0.2;
+  QLinearGradient sheen(sweep_x - 110, 0, sweep_x + 110, 0);
+  sheen.setColorAt(0.0, QColor(255, 255, 255, 0));
+  sheen.setColorAt(0.5, QColor(190, 235, 255, 48));
+  sheen.setColorAt(1.0, QColor(255, 255, 255, 0));
+
+  QPainterPath image_clip;
+  image_clip.addRoundedRect(QRectF(rect()), 14, 14);
+  painter.setClipPath(image_clip);
+  painter.fillRect(rect(), sheen);
 }
 
 // Spinner
@@ -125,7 +120,7 @@ Spinner::Spinner(QWidget *parent) : QWidget(parent) {
   ipLabel->setAlignment(Qt::AlignCenter);
   main_layout->addWidget(ipLabel, 0, 0, Qt::AlignHCenter | Qt::AlignTop);
 
-  main_layout->addWidget(new TrackWidget(this), 1, 0, Qt::AlignHCenter | Qt::AlignVCenter);
+  main_layout->addWidget(new KiaLoadingWidget(this), 1, 0, Qt::AlignHCenter | Qt::AlignVCenter);
 
   text = new QLabel();
   text->setObjectName("statusLabel");
@@ -137,9 +132,9 @@ Spinner::Spinner(QWidget *parent) : QWidget(parent) {
   text->setAlignment(Qt::AlignCenter);
 
   progress_bar = new QProgressBar();
-  progress_bar->setRange(5, 100);
+  progress_bar->setRange(0, 0);
   progress_bar->setTextVisible(false);
-  progress_bar->setVisible(false);
+  progress_bar->setVisible(true);
   progress_bar->setFixedWidth(1000);
   progress_bar->setFixedHeight(20);
 
@@ -204,6 +199,7 @@ void Spinner::update(int n) {
   if (line.length()) {
     bool number = std::all_of(line.begin(), line.end(), ::isdigit);
     if (number) {
+      progress_bar->setRange(5, 100);
       progress_bar->setVisible(true);
       progress_bar->setValue(std::stoi(line));
     } else {

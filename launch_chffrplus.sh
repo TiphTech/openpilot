@@ -180,7 +180,7 @@ function launch {
   if [ ! -f $DIR/prebuilt ]; then
     ./build.py
   fi
-  ./manager.py
+  python3 ./startup.py
 
   # if broken, keep on screen error
   while true; do sleep 1; done

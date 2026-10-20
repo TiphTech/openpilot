@@ -1,24 +1,23 @@
-#include <array>
-
+#include <QElapsedTimer>
 #include <QLabel>
 #include <QPixmap>
 #include <QProgressBar>
 #include <QSocketNotifier>
-#include <QVariantAnimation>
+#include <QTimer>
 #include <QWidget>
 
-constexpr int spinner_fps = 30;
-constexpr QSize spinner_size = QSize(360, 360);
+constexpr QSize loading_image_size = QSize(1000, 563);
 
-class TrackWidget : public QWidget  {
+class KiaLoadingWidget : public QWidget  {
   Q_OBJECT
 public:
-  TrackWidget(QWidget *parent = nullptr);
+  KiaLoadingWidget(QWidget *parent = nullptr);
 
 private:
   void paintEvent(QPaintEvent *event) override;
-  std::array<QPixmap, spinner_fps> track_imgs;
-  QVariantAnimation m_anim;
+  QPixmap kia_image;
+  QElapsedTimer animation_clock;
+  QTimer animation_timer;
 };
 
 class Spinner : public QWidget {
