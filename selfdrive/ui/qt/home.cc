@@ -450,7 +450,8 @@ void HomeWindow::mouseDoubleClickEvent(QMouseEvent* e) {
 
 OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   QVBoxLayout* main_layout = new QVBoxLayout(this);
-  main_layout->setContentsMargins(40, 40, 40, 40);
+  main_layout->setContentsMargins(18, 18, 18, 18);
+  main_layout->setSpacing(0);
 
   // top header
   QHBoxLayout* header_layout = new QHBoxLayout();
@@ -476,14 +477,13 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   main_layout->addLayout(header_layout);
 
   // main content
-  main_layout->addSpacing(25);
   center_layout = new QStackedLayout();
 
   QWidget *home_widget = new QWidget(this);
   {
-    QHBoxLayout *home_layout = new QHBoxLayout(home_widget);
+    QStackedLayout *home_layout = new QStackedLayout(home_widget);
     home_layout->setContentsMargins(0, 0, 0, 0);
-    home_layout->setSpacing(0);
+    home_layout->setStackingMode(QStackedLayout::StackAll);
 
     QStackedWidget *prime_widget = new QStackedWidget(this);
     QVBoxLayout *left_prime_layout = new QVBoxLayout();
@@ -502,7 +502,47 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
       prime_widget->setCurrentIndex(uiState()->prime_state->isSubscribed() ? 0 : 1);
     });
 
-    home_layout->addWidget(prime_widget, 1);
+    home_layout->addWidget(prime_widget);
+
+    QWidget *countdown_overlay = new QWidget(home_widget);
+    countdown_overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+    countdown_overlay->setStyleSheet("background-color: transparent;");
+    QVBoxLayout *countdown_layout = new QVBoxLayout(countdown_overlay);
+    countdown_layout->setContentsMargins(0, 0, 0, 20);
+    countdown_layout->setSpacing(8);
+    countdown_layout->addStretch(1);
+
+    QWidget *countdown_panel = new QWidget(countdown_overlay);
+    countdown_panel->setStyleSheet("background-color: rgba(0, 0, 0, 170); border-radius: 12px;");
+    QVBoxLayout *panel_layout = new QVBoxLayout(countdown_panel);
+    panel_layout->setContentsMargins(14, 8, 14, 8);
+    panel_layout->setSpacing(4);
+
+    shutdown_countdown = new QLabel(countdown_panel);
+    shutdown_countdown->setAlignment(Qt::AlignCenter);
+    shutdown_countdown->setStyleSheet("font-size: 34px; font-weight: 700; color: #FF453A;");
+    panel_layout->addWidget(shutdown_countdown);
+
+    shutdown_progress = new QProgressBar(countdown_panel);
+    shutdown_progress->setRange(0, 1000);
+    shutdown_progress->setTextVisible(false);
+    shutdown_progress->setFixedSize(700, 16);
+    shutdown_progress->setStyleSheet(R"(
+      QProgressBar {
+        background-color: #303030;
+        border: 1px solid #666666;
+        border-radius: 8px;
+      }
+      QProgressBar::chunk {
+        background-color: #FF453A;
+        border-radius: 7px;
+      }
+    )");
+    panel_layout->addWidget(shutdown_progress, 0, Qt::AlignHCenter);
+    countdown_layout->addWidget(countdown_panel, 0, Qt::AlignHCenter);
+
+    home_layout->addWidget(countdown_overlay);
+    home_layout->setCurrentWidget(countdown_overlay);
   }
   center_layout->addWidget(home_widget);
 
@@ -515,30 +555,6 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   center_layout->addWidget(alerts_widget);
 
   main_layout->addLayout(center_layout, 1);
-
-  shutdown_countdown = new QLabel(this);
-  shutdown_countdown->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-  shutdown_countdown->setStyleSheet("font-size: 38px; font-weight: 700; color: #FF453A; padding: 12px 0 4px 0;");
-  shutdown_countdown->hide();
-  main_layout->addWidget(shutdown_countdown);
-
-  shutdown_progress = new QProgressBar(this);
-  shutdown_progress->setRange(0, 1000);
-  shutdown_progress->setTextVisible(false);
-  shutdown_progress->setFixedSize(700, 16);
-  shutdown_progress->setStyleSheet(R"(
-    QProgressBar {
-      background-color: #303030;
-      border: 1px solid #666666;
-      border-radius: 8px;
-    }
-    QProgressBar::chunk {
-      background-color: #FF453A;
-      border-radius: 7px;
-    }
-  )");
-  shutdown_progress->hide();
-  main_layout->addWidget(shutdown_progress, 0, Qt::AlignHCenter);
 
   // set up refresh timer
   timer = new QTimer(this);
@@ -606,8 +622,7 @@ void OffroadHome::updateShutdownCountdown() {
   const int max_time_min = params.getInt("MaxTimeOffroadMin");
   const qint64 offroad_start = params.getInt("OffroadStartTime");
   if (max_time_min <= 0 || offroad_start <= 0) {
-    shutdown_countdown->hide();
-    shutdown_progress->hide();
+    shutdown_countdown->parentWidget()->hide();
     return;
   }
 
@@ -626,4 +641,5 @@ void OffroadHome::updateShutdownCountdown() {
   shutdown_progress->setValue(static_cast<int>((remaining * shutdown_progress->maximum()) / total_seconds));
   shutdown_countdown->show();
   shutdown_progress->show();
+  shutdown_countdown->parentWidget()->show();
 }
