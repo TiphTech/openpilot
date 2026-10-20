@@ -103,13 +103,12 @@ mat4 AnnotatedCameraWidget::calcFrameMatrix() {
    // Compute the calibration transformation matrix
   const auto calib_transform = intrinsic_matrix * calibration;
 
-  float zoom = wide_cam ? 2.0 : 1.1;
-  Eigen::Vector3f inf(1000., 0., 0.);
-  auto Kep = calib_transform * inf;
-
   int w = width(), h = height();
   float center_x = intrinsic_matrix(0, 2);
   float center_y = intrinsic_matrix(1, 2);
+  float zoom = wide_cam ? 2.0f : std::max(1.1f, (w * 0.5f + 6.0f) / center_x);
+  Eigen::Vector3f inf(1000., 0., 0.);
+  auto Kep = calib_transform * inf;
 
   float max_x_offset = center_x * zoom - w / 2 - 5;
   float max_y_offset = center_y * zoom - h / 2 - 5;
