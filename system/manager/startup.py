@@ -20,7 +20,7 @@ def ui_is_running() -> bool:
 
 def main() -> int:
   spinner = Spinner()
-  spinner.update("Starting CarrotPilot")
+  spinner.update("Starting")
   manager = subprocess.Popen(["./manager.py"])
 
   try:
