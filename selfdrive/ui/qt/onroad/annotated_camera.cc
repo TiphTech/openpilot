@@ -85,7 +85,7 @@ void AnnotatedCameraWidget::initializeGL() {
 
   ui_nvg_init(uiState());
   prev_draw_t = millis_since_boot();
-  setBackgroundColor(bg_colors[STATUS_DISENGAGED]);
+  setBackgroundColor(Qt::black);
 }
 
 mat4 AnnotatedCameraWidget::calcFrameMatrix() {
