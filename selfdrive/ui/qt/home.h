@@ -3,6 +3,7 @@
 #include <QFrame>
 #include <QLabel>
 #include <QPushButton>
+#include <QProgressBar>
 #include <QStackedLayout>
 #include <QTimer>
 #include <QWidget>
