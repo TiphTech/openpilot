@@ -37,6 +37,7 @@ private:
   QTimer* shutdown_timer;
   ElidedLabel* version;
   QLabel* shutdown_countdown;
+  QProgressBar* shutdown_progress;
   QStackedLayout* center_layout;
   UpdateAlert *update_widget;
   OffroadAlert* alerts_widget;

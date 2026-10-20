@@ -65,7 +65,7 @@ static QString getLocalIPv4() {
 
 static QString recoveryLabel() {
   QString ip = getLocalIPv4();
-  if (ip.isEmpty()) return QStringLiteral("no network");
+  if (ip.isEmpty()) return QString();
   return ip + QStringLiteral(":6999");
 }
 
@@ -126,6 +126,7 @@ Spinner::Spinner(QWidget *parent) : QWidget(parent) {
   ipLabel->setObjectName("ipLabel");
   ipLabel->setFont(QFont(font_family, 84));
   ipLabel->setAlignment(Qt::AlignCenter);
+  ipLabel->setVisible(!ipLabel->text().isEmpty());
   main_layout->addWidget(ipLabel, 0, 0, Qt::AlignHCenter | Qt::AlignTop);
 
   main_layout->addWidget(new KiaLoadingWidget(this), 1, 0, Qt::AlignHCenter | Qt::AlignVCenter);
@@ -197,7 +198,11 @@ Spinner::Spinner(QWidget *parent) : QWidget(parent) {
 }
 
 void Spinner::refreshIPLabel() {
-  if (ipLabel) ipLabel->setText(recoveryLabel());
+  if (ipLabel) {
+    QString label = recoveryLabel();
+    ipLabel->setText(label);
+    ipLabel->setVisible(!label.isEmpty());
+  }
 }
 
 void Spinner::update(int n) {

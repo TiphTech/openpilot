@@ -522,6 +522,24 @@ OffroadHome::OffroadHome(QWidget* parent) : QFrame(parent) {
   shutdown_countdown->hide();
   main_layout->addWidget(shutdown_countdown);
 
+  shutdown_progress = new QProgressBar(this);
+  shutdown_progress->setRange(0, 1000);
+  shutdown_progress->setTextVisible(false);
+  shutdown_progress->setFixedSize(700, 16);
+  shutdown_progress->setStyleSheet(R"(
+    QProgressBar {
+      background-color: #303030;
+      border: 1px solid #666666;
+      border-radius: 8px;
+    }
+    QProgressBar::chunk {
+      background-color: #FF453A;
+      border-radius: 7px;
+    }
+  )");
+  shutdown_progress->hide();
+  main_layout->addWidget(shutdown_progress, 0, Qt::AlignHCenter);
+
   // set up refresh timer
   timer = new QTimer(this);
   timer->callOnTimeout(this, &OffroadHome::refresh);
@@ -589,11 +607,13 @@ void OffroadHome::updateShutdownCountdown() {
   const qint64 offroad_start = params.getInt("OffroadStartTime");
   if (max_time_min <= 0 || offroad_start <= 0) {
     shutdown_countdown->hide();
+    shutdown_progress->hide();
     return;
   }
 
   // Matches the 30-second clean-shutdown delay in power_monitoring.py.
-  qint64 remaining = offroad_start + (max_time_min * 60) + 30 - QDateTime::currentSecsSinceEpoch();
+  const qint64 total_seconds = (max_time_min * 60) + 30;
+  qint64 remaining = offroad_start + total_seconds - QDateTime::currentSecsSinceEpoch();
   remaining = std::max<qint64>(0, remaining);
 
   const qint64 hours = remaining / 3600;
@@ -603,5 +623,7 @@ void OffroadHome::updateShutdownCountdown() {
                                 .arg(hours, 2, 10, QChar('0'))
                                 .arg(minutes, 2, 10, QChar('0'))
                                 .arg(seconds, 2, 10, QChar('0')));
+  shutdown_progress->setValue(static_cast<int>((remaining * shutdown_progress->maximum()) / total_seconds));
   shutdown_countdown->show();
+  shutdown_progress->show();
 }
