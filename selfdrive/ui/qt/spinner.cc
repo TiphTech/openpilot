@@ -80,7 +80,7 @@ static QString spinnerFontFamily() {
 
 KiaLoadingWidget::KiaLoadingWidget(QWidget *parent) : QWidget(parent) {
   setFixedSize(loading_image_size);
-  kia_image = loadPixmap("../assets/kia.png", loading_image_size);
+  kia_image = loadPixmap("../assets/kia_logo_white.png", QSize(680, 250));
   animation_clock.start();
   animation_timer.setInterval(33);
   connect(&animation_timer, &QTimer::timeout, this, [this]() { update(); });
@@ -90,19 +90,27 @@ KiaLoadingWidget::KiaLoadingWidget(QWidget *parent) : QWidget(parent) {
 void KiaLoadingWidget::paintEvent(QPaintEvent *event) {
   QPainter painter(this);
   painter.setRenderHint(QPainter::SmoothPixmapTransform);
-  painter.drawPixmap(rect(), kia_image);
+  painter.fillRect(rect(), Qt::black);
+
+  const QRect logo_rect((width() - kia_image.width()) / 2,
+                        (height() - kia_image.height()) / 2,
+                        kia_image.width(), kia_image.height());
+  QPixmap animated_logo(kia_image.size());
+  animated_logo.fill(Qt::transparent);
+  QPainter logo_painter(&animated_logo);
+  logo_painter.setRenderHint(QPainter::SmoothPixmapTransform);
+  logo_painter.drawPixmap(0, 0, kia_image);
 
   const double phase = std::fmod(animation_clock.elapsed() / 3600.0, 1.0);
-  const double sweep_x = phase * (width() * 1.4) - width() * 0.2;
-  QLinearGradient sheen(sweep_x - 110, 0, sweep_x + 110, 0);
+  const double sweep_x = phase * (kia_image.width() * 1.4) - kia_image.width() * 0.2;
+  QLinearGradient sheen(sweep_x - 80, 0, sweep_x + 80, 0);
   sheen.setColorAt(0.0, QColor(255, 255, 255, 0));
-  sheen.setColorAt(0.5, QColor(190, 235, 255, 48));
+  sheen.setColorAt(0.5, QColor(190, 235, 255, 70));
   sheen.setColorAt(1.0, QColor(255, 255, 255, 0));
-
-  QPainterPath image_clip;
-  image_clip.addRoundedRect(QRectF(rect()), 14, 14);
-  painter.setClipPath(image_clip);
-  painter.fillRect(rect(), sheen);
+  logo_painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
+  logo_painter.fillRect(animated_logo.rect(), sheen);
+  logo_painter.end();
+  painter.drawPixmap(logo_rect, animated_logo);
 }
 
 // Spinner
