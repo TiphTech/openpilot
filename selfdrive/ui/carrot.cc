@@ -2538,12 +2538,18 @@ public:
         }
         int dx = bx - 50;
         int dy = by + 175;
+        const bool driving_mode_auto = params.getInt("MyDrivingModeAuto") == 2;
+        if (driving_mode_auto) {
+            const int auto_y = dy - 88;
+            ui_fill_rect(s->vg, { dx - 55, auto_y, 110, 40 }, COLOR_RED_ALPHA(220), 14, 2);
+            ui_draw_text(s, dx, auto_y + 28, "AUTO", 28, COLOR_WHITE, BOLD);
+        }
         ui_fill_rect(s->vg, { dx - 55, dy - 38, 110, 48 }, mode_color, 15, 2);
         ui_draw_text(s, dx, dy - 2, driving_mode_str, 32, text_color, BOLD);
 
         auto gps = (s->ublox_avaliable) ? sm["gpsLocationExternal"].getGpsLocationExternal() : sm["gpsLocation"].getGpsLocation();
         if (gps.getHasFix()) {
-          ui_draw_text(s, dx, dy - 45, "GPS", 30, COLOR_GREEN, BOLD);
+          ui_draw_text(s, dx, dy - (driving_mode_auto ? 100 : 45), "GPS", 30, COLOR_GREEN, BOLD);
         }
 
         int gap = params.getInt("LongitudinalPersonality") + 1;

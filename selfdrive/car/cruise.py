@@ -186,6 +186,7 @@ class VCruiseCarrot:
     self._soft_hold_active = 0
     self._cruise_ready = False
     self._cruise_cancel_state = False
+    self._main_cruise_active_last = False
     self._pause_auto_speed_up = False
     self._activate_cruise = 0
     self._lat_enabled = self.params.get_int("AutoEngage") > 0
@@ -426,6 +427,7 @@ class VCruiseCarrot:
 
     self.cruise_state_available_last = CS.cruiseState.available
     self.enabled_last = CC.enabled
+    self._main_cruise_active_last = bool(CS.cruiseState.enabled or CC.enabled)
 
   def initialize_v_cruise(self, CS, experimental_mode: bool) -> None:
     return
@@ -645,6 +647,9 @@ class VCruiseCarrot:
 
     v_cruise_kph, button_type, long_pressed = self._carrot_command(CS, v_cruise_kph, button_type, long_pressed)
 
+    if any(b.type == ButtonType.mainCruise and b.pressed for b in CS.buttonEvents):
+      v_cruise_kph = self._handle_main_cruise_button(v_cruise_kph)
+
     if button_type in [ButtonType.accelCruise, ButtonType.decelCruise]:
       self._cancel_road_limit_ramp()
       self._paddle_decel_active = False
@@ -859,6 +864,33 @@ class VCruiseCarrot:
     self._activate_cruise = 1
     self._cruise_ready = False
     self._add_log(f"Cruise resumed at {v_cruise_kph:.0f}")
+    return v_cruise_kph
+
+  def _handle_main_cruise_button(self, v_cruise_kph):
+    """Toggle cruise and lateral control, using the saved set speed when resuming."""
+    self._paddle_decel_active = False
+    self.carrot_cruise_active = False
+
+    if self._main_cruise_active_last:
+      self._lat_enabled = False
+      self._pause_auto_speed_up = False
+      self._cruise_cancel_state = True
+      self._store_resume_cruise_speed(v_cruise_kph)
+      if not self.CP.pcmCruise:
+        self._activate_cruise = -1
+      action = "off"
+    else:
+      self._lat_enabled = True
+      self._pause_auto_speed_up = False
+      self._cruise_cancel_state = False
+      v_cruise_kph = self._resume_cruise_speed()
+      self._queue_pcm_set_speed(v_cruise_kph)
+      self._store_resume_cruise_speed(v_cruise_kph)
+      self._activate_cruise = 1
+      self._cruise_ready = False
+      action = f"resumed at {v_cruise_kph:.0f}"
+
+    self._add_log(f"Main cruise button: {action}, lateral {'off' if not self._lat_enabled else 'on'}")
     return v_cruise_kph
 
   def _toggle_turn_speed_control(self):

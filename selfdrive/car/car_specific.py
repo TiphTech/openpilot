@@ -157,9 +157,14 @@ class CarSpecificEvents:
       # To avoid re-engaging when openpilot cancels, check user engagement intention via buttons
       # Main button also can trigger an engagement on these cars
       self.cruise_buttons.append(any(ev.type in HYUNDAI_ENABLE_BUTTONS for ev in CS.buttonEvents))
+      main_cruise_pressed = any(ev.type == ButtonType.mainCruise and ev.pressed for ev in CS.buttonEvents)
+      main_cruise_turning_off = main_cruise_pressed and (CS_prev.cruiseState.enabled or CC.enabled)
       events = self.create_common_events(CS, CS_prev, extra_gears=(GearShifter.sport, GearShifter.manumatic),
                                          #pcm_enable=self.CP.pcmCruise, allow_enable=any(self.cruise_buttons), allow_button_cancel=False)
-                                         pcm_enable=self.CP.pcmCruise, allow_enable=True, allow_button_cancel=False)
+                                         pcm_enable=self.CP.pcmCruise, allow_enable=not main_cruise_turning_off,
+                                         allow_button_cancel=False)
+      if main_cruise_turning_off and self.CP.pcmCruise:
+        events.add(EventName.buttonCancel)
 
       # low speed steer alert hysteresis logic (only for cars with steer cut off above 10 m/s)
       if CS.vEgo < (self.CP.minSteerSpeed + 2.) and self.CP.minSteerSpeed > 10.:

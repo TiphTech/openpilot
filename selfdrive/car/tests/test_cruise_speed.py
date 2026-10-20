@@ -4,7 +4,7 @@ import numpy as np
 
 from parameterized import parameterized_class
 from cereal import log
-from openpilot.selfdrive.car.cruise import VCruiseHelper, V_CRUISE_MIN, V_CRUISE_MAX, V_CRUISE_INITIAL, IMPERIAL_INCREMENT
+from openpilot.selfdrive.car.cruise import VCruiseCarrot, VCruiseHelper, V_CRUISE_MIN, V_CRUISE_MAX, V_CRUISE_INITIAL, IMPERIAL_INCREMENT
 from cereal import car
 from openpilot.common.conversions import Conversions as CV
 from openpilot.selfdrive.test.longitudinal_maneuvers.maneuver import Maneuver
@@ -149,3 +149,32 @@ class TestVCruiseHelper:
         self.enable(float(v_ego), experimental_mode)
         assert V_CRUISE_INITIAL <= self.v_cruise_helper.v_cruise_kph <= V_CRUISE_MAX
         assert self.v_cruise_helper.v_cruise_initialized
+
+
+@pytest.mark.parametrize("pcm_cruise, was_active, activate_cruise", [
+  (True, True, 0), (False, True, -1), (True, False, 1), (False, False, 1),
+])
+def test_main_cruise_button_toggles_longitudinal_and_lateral(pcm_cruise, was_active, activate_cruise):
+  helper = VCruiseCarrot(car.CarParams(pcmCruise=pcm_cruise))
+  helper._main_cruise_active_last = was_active
+  helper._lat_enabled = was_active
+  helper._paddle_decel_active = True
+  helper.carrot_cruise_active = True
+  helper._pause_auto_speed_up = True
+  helper._activate_cruise = 0
+  helper._v_cruise_kph_resume = 88
+  helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
+  helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
+  helper._add_log = lambda message: None
+
+  helper._handle_main_cruise_button(88)
+
+  assert helper._lat_enabled is not was_active
+  assert not helper._paddle_decel_active
+  assert not helper.carrot_cruise_active
+  assert not helper._pause_auto_speed_up
+  assert helper._cruise_cancel_state is was_active
+  assert helper._activate_cruise == activate_cruise
+  assert helper.stored_speed == 88
+  if not was_active:
+    assert helper.queued_speed == 88
