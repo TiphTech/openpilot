@@ -33,6 +33,15 @@ ACCEL_MAX = 2.5
 ACCEL_MIN = -4.0 #3.5
 FRICTION_THRESHOLD = 0.3
 
+RADAR_ACCEL_INNOVATION_LIMIT = 3.0
+RADAR_ACCEL_HISTORY_SAMPLES = 3
+RADAR_ACCEL_FILTER_RC = 0.05
+RADAR_JERK_HISTORY_SECONDS = 0.50
+RADAR_JERK_HISTORY_MIN_SAMPLES = 7
+RADAR_JERK_FILTER_RC = 0.25
+RADAR_JERK_ZERO_FILTER_RC = 0.10
+RADAR_JERK_DEADBAND = 0.20
+
 NEURAL_PARAMS_PATH = os.path.join(BASEDIR, 'torque_data/neural_ff_weights.json')
 TORQUE_NN_MODEL_PATH = os.path.join(BASEDIR, 'torque_data/lat_models')
 
@@ -202,6 +211,24 @@ def get_nn_model(car, eps_firmware) -> tuple[FluxModel | None, float]:
     model = FluxModel(model)
   return model
 
+
+@cache
+def radar_quadratic_jerk_weights(sample_count: int) -> tuple[float, ...]:
+  sample_times = np.arange(sample_count, dtype=float) - (sample_count - 1)
+  design = np.column_stack((np.ones(sample_count), sample_times, sample_times ** 2))
+  return tuple((2.0 * np.linalg.pinv(design)[2]).tolist())
+
+
+def estimate_radar_jerk(velocity_history: deque[float], dt: float) -> float:
+  if len(velocity_history) < RADAR_JERK_HISTORY_MIN_SAMPLES:
+    return 0.0
+  weights = radar_quadratic_jerk_weights(len(velocity_history))
+  normalized_jerk = sum(
+    weight * velocity
+    for weight, velocity in zip(weights, velocity_history, strict=True)
+  )
+  return normalized_jerk / (dt ** 2)
+
 class MyTrack:
   def __init__(self, track_id: int, radar_point, dt: float):
     self.track_id = track_id
@@ -211,16 +238,36 @@ class MyTrack:
     self.yRel = radar_point.yRel
     self.yvRel = radar_point.yvRel
     self.vLead = radar_point.vLead
-    self.v_lead_filtered_last = self.vLead
+    self.radar_source = str(radar_point.radarSource)
     self.aLead = 0.0
     self.jLead = 0.0
+    self.noisy = False
     self.dt = dt
     self.vLead_avg = FirstOrderFilter(self.vLead, 0.1, self.dt)
-    self.aLead_avg = FirstOrderFilter(self.aLead, 0.15, self.dt)
-    self.jLead_avg = FirstOrderFilter(self.jLead, 0.4, self.dt)
+    self.aLead_avg = FirstOrderFilter(self.aLead, RADAR_ACCEL_FILTER_RC, self.dt)
+    self.jLead_avg = FirstOrderFilter(self.jLead, RADAR_JERK_FILTER_RC, self.dt)
+    self.aLead_v_history: deque[float] = deque(maxlen=RADAR_ACCEL_HISTORY_SAMPLES)
+    jerk_history_samples = max(
+      RADAR_JERK_HISTORY_MIN_SAMPLES,
+      int(round(RADAR_JERK_HISTORY_SECONDS / self.dt)) + 1,
+    )
+    self.jLead_v_history: deque[float] = deque(maxlen=jerk_history_samples)
     self.yRel_avg = FirstOrderFilter(self.yRel, 0.1, self.dt)
     self.yvRel_avg = FirstOrderFilter(self.yvRel, 0.1, self.dt)
+    self._reset_kinematics()
     self.cnt = 0
+
+  def _reset_kinematics(self):
+    self.aLead = 0.0
+    self.jLead = 0.0
+    self.noisy = False
+    self.vLead_avg.x = self.vLead
+    self.aLead_avg.x = self.aLead
+    self.jLead_avg.x = self.jLead
+    self.aLead_v_history.clear()
+    self.aLead_v_history.append(self.vLead)
+    self.jLead_v_history.clear()
+    self.jLead_v_history.append(self.vLead)
 
   def init_point(self, radar_point):
     self.dRel = radar_point.dRel
@@ -228,12 +275,8 @@ class MyTrack:
     self.yRel = radar_point.yRel
     self.yvRel = radar_point.yvRel
     self.vLead = radar_point.vLead
-    self.v_lead_filtered_last = self.vLead
-    self.aLead = 0.0
-    self.jLead = 0.0
-    self.vLead_avg.x = self.vLead
-    self.aLead_avg.x = self.aLead
-    self.jLead_avg.x = self.jLead
+    self.radar_source = str(radar_point.radarSource)
+    self._reset_kinematics()
     self.yRel_avg.x = self.yRel
     self.yvRel_avg.x = self.yvRel
         
@@ -250,26 +293,53 @@ class MyTrack:
       self.yRel = self.yRel_avg.update(radar_point.yRel)
       self.yvRel = self.yvRel_avg.update(radar_point.yvRel)
 
-      if True: #math.isnan(radar_point.aRel): # 
-        v_lead_filtered = self.vLead_avg.update(self.vLead)
-        pseudo_stop = abs(v_lead_filtered) < 0.3 and abs(self.vLead - v_lead_filtered) < 0.05
-        a_raw = (v_lead_filtered - self.v_lead_filtered_last) / self.dt
-        self.v_lead_filtered_last = v_lead_filtered
+      v_lead_filtered = self.vLead_avg.update(self.vLead)
+      pseudo_stop = abs(v_lead_filtered) < 0.3 and abs(self.vLead - v_lead_filtered) < 0.05
 
-        self.noisy = abs(a_raw - self.aLead) > 3.0
-        if self.noisy:
-          self.cnt = 0
-        
-        a_lead = self.aLead_avg.update(np.clip(a_raw, -10.0, 5.0) if not pseudo_stop else 0.0)
-
-        j_lead = (a_lead - self.aLead) / self.dt
-        self.aLead = a_lead
-        self.jLead = self.jLead_avg.update(j_lead if self.cnt > 2 else 0.0)
+      self.aLead_v_history.append(self.vLead)
+      if len(self.aLead_v_history) == RADAR_ACCEL_HISTORY_SAMPLES:
+        acceleration_span = (RADAR_ACCEL_HISTORY_SAMPLES - 1) * self.dt
+        a_raw = (self.aLead_v_history[-1] - self.aLead_v_history[0]) / acceleration_span
       else:
-        a_lead = radar_point.aRel + a_ego
-        j_lead = (a_lead - self.aLead) / self.dt
-        self.aLead = a_lead
-        self.jLead = self.jLead_avg.update(j_lead if self.cnt > 2 else 0.0)
+        a_raw = 0.0
+
+      self.noisy = abs(a_raw - self.aLead) > RADAR_ACCEL_INNOVATION_LIMIT
+      accel_sample = np.clip(a_raw, -10.0, 5.0) if not pseudo_stop else 0.0
+      if self.noisy and self.radar_source == "scc":
+        self.cnt = 0
+      elif self.noisy:
+        accel_sample = np.clip(
+          accel_sample,
+          self.aLead - RADAR_ACCEL_INNOVATION_LIMIT,
+          self.aLead + RADAR_ACCEL_INNOVATION_LIMIT,
+        )
+
+      self.aLead = float(self.aLead_avg.update(accel_sample))
+
+      trend_velocity = self.vLead
+      if self.jLead_v_history:
+        previous_velocity = self.jLead_v_history[-1]
+        frame_acceleration = (trend_velocity - previous_velocity) / self.dt
+        trend_velocity = previous_velocity + float(np.clip(frame_acceleration, -10.0, 5.0)) * self.dt
+      self.jLead_v_history.append(trend_velocity)
+
+      j_measurement = float(np.clip(
+        estimate_radar_jerk(self.jLead_v_history, self.dt), -6.0, 6.0,
+      ))
+      if pseudo_stop or (self.noisy and self.radar_source == "scc"):
+        j_target = 0.0
+      else:
+        j_target = math.copysign(
+          max(0.0, abs(j_measurement) - RADAR_JERK_DEADBAND), j_measurement,
+        )
+      if self.cnt <= 2:
+        j_target = 0.0
+
+      self.jLead_avg.update_alpha(
+        RADAR_JERK_ZERO_FILTER_RC if j_target == 0.0 else RADAR_JERK_FILTER_RC,
+      )
+      self.jLead = float(np.clip(self.jLead_avg.update(j_target), -5.0, 5.0))
+      self.jLead_avg.x = self.jLead
 
       # Store latest values
       self.dRel = radar_point.dRel
