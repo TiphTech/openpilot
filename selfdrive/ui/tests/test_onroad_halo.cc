@@ -22,6 +22,11 @@ QImage render(const QSize &size, const OnroadHaloState &state, double seconds = 
 }
 
 int main(int argc, char **argv) {
+  assert(should_show_brake_halo(true, false, 0.0f, 0.0f, 0.6f));
+  assert(should_show_brake_halo(false, true, -0.1f, 0.0f, 0.6f));
+  assert(should_show_brake_halo(false, false, 0.0f, -0.6f, 0.6f));
+  assert(!should_show_brake_halo(false, false, 0.0f, -0.59f, 0.6f));
+  assert(!should_show_brake_halo(false, false, 0.0f, 0.0f, 0.6f));
   const QString output = argc > 1 ? argv[1] : "/tmp/onroad-halo";
   QDir().mkpath(output);
   const OnroadHaloState both{true, true}, lateral{true}, cruise{false, true};

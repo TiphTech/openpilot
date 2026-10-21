@@ -16,6 +16,13 @@ struct OnroadHaloState {
   bool right_blinker = false;
 };
 
+inline bool should_show_brake_halo(bool brake_pressed, bool cruise_enabled,
+                                   float cruise_accel, float ego_accel,
+                                   float decel_threshold) {
+  return brake_pressed || (cruise_enabled && cruise_accel < -0.1f) ||
+         ego_accel <= -std::max(0.1f, decel_threshold);
+}
+
 constexpr int ONROAD_HALO_FRAME_MARGIN = 12;
 
 inline void paint_onroad_halo(QPainter &painter, const QRectF &bounds,

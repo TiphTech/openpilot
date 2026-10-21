@@ -1,7 +1,9 @@
 #include "selfdrive/ui/carrot.h"
 
 #include <cassert>
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 
 #include <QJsonDocument>
@@ -3162,9 +3164,25 @@ OnroadHaloState onroad_halo_state(const UIState &s) {
     if (sm.alive("carState") && sm.valid("carState")) {
         const auto cs = sm["carState"].getCarState();
         state.cruise = cs.getCruiseState().getEnabled();
-        state.braking = cs.getBrakeLights();
         state.left_blinker = cs.getLeftBlinker();
         state.right_blinker = cs.getRightBlinker();
+
+        static int decel_threshold_tenths = 6;
+        static uint64_t last_threshold_read = 0;
+        const uint64_t now = millis_since_boot();
+        if (now - last_threshold_read >= 1000) {
+            decel_threshold_tenths = std::clamp(Params().getInt("TopBarBrakeDecelThreshold"), 1, 30);
+            last_threshold_read = now;
+        }
+
+        float cruise_accel = 0.0f;
+        if (sm.alive("longitudinalPlan") && sm.valid("longitudinalPlan")) {
+            const auto accels = sm["longitudinalPlan"].getLongitudinalPlan().getAccels();
+            if (accels.size() > 0) cruise_accel = accels[0];
+        }
+        state.braking = should_show_brake_halo(cs.getBrakePressed(), state.cruise,
+                                               cruise_accel, cs.getAEgo(),
+                                               decel_threshold_tenths / 10.0f);
     }
     state.lateral = sm.alive("carControl") && sm.valid("carControl") && sm["carControl"].getCarControl().getLatActive();
     return state;

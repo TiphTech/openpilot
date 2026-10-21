@@ -2192,6 +2192,22 @@
     },
     {
       "group": "감속제어",
+      "name": "TopBarBrakeDecelThreshold",
+      "title": "상단바 감속 임계값*0.1(0.6m/s²)",
+      "descr": "실제 차량 감속이 임계값 이상일 때 상단바를 빨간색으로 표시합니다. 브레이크 페달과 크루즈 제동 요청은 항상 빨간색으로 표시합니다.",
+      "egroup": "DISP",
+      "etitle": "Top bar deceleration threshold*0.1(0.6m/s²)",
+      "edescr": "Show the top halo red when measured vehicle deceleration reaches this threshold. Brake pedal and cruise braking requests always turn it red.",
+      "min": 1,
+      "max": 30,
+      "default": 6,
+      "unit": 1,
+      "cgroup": "显示",
+      "ctitle": "顶部栏减速度阈值*0.1(0.6m/s²)",
+      "cdescr": "车辆实际减速度达到阈值时顶部光环显示红色。踩下制动踏板或巡航发出制动请求时始终显示红色。"
+    },
+    {
+      "group": "감속제어",
       "name": "AutoRoadSpeedLimitOffset",
       "title": "도로제한속도맞춤(-1)",
       "descr": "도로제한속도 + 설정값\n -1: 안함,",

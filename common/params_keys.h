@@ -288,6 +288,7 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
 
     {"HapticFeedbackWhenSpeedCamera", {PERSISTENT, INT, "0"}},
     {"SpeedCameraBeep", {PERSISTENT, INT, "1"}},
+    {"TopBarBrakeDecelThreshold", {PERSISTENT, INT, "6"}},
     {"UseLaneLineSpeed", {PERSISTENT, INT, "0"}},
     {"UseLaneLineCurveSpeed", {PERSISTENT, INT, "0"}},
 
