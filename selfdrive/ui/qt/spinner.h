@@ -31,6 +31,8 @@ private:
   QLabel *ipLabel;
   QProgressBar *progress_bar;
   QSocketNotifier *notifier;
+  QElapsedTimer startup_progress_clock;
+  QTimer startup_progress_timer;
 
 private slots:
   void refreshIPLabel();

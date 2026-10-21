@@ -147,6 +147,16 @@ Spinner::Spinner(QWidget *parent) : QWidget(parent) {
   progress_bar->setFixedWidth(1000);
   progress_bar->setFixedHeight(20);
 
+  startup_progress_timer.setInterval(50);
+  connect(&startup_progress_timer, &QTimer::timeout, this, [this]() {
+    constexpr qint64 startup_duration_ms = 12000;
+    const qint64 elapsed_ms = std::min(startup_progress_clock.elapsed(), startup_duration_ms);
+    progress_bar->setValue(static_cast<int>(elapsed_ms));
+    if (elapsed_ms >= startup_duration_ms) {
+      startup_progress_timer.stop();
+    }
+  });
+
   QVBoxLayout *progress_layout = new QVBoxLayout();
   progress_layout->setContentsMargins(0, 0, 0, 0);
   progress_layout->setSpacing(6);
@@ -212,6 +222,7 @@ void Spinner::update(int n) {
   if (line.length()) {
     bool number = std::all_of(line.begin(), line.end(), ::isdigit);
     if (number) {
+      startup_progress_timer.stop();
       progress_bar->setRange(5, 100);
       progress_bar->setVisible(true);
       progress_bar->setValue(std::stoi(line));
@@ -219,6 +230,17 @@ void Spinner::update(int n) {
       QString status = QString::fromStdString(line);
       text->setText(text->fontMetrics().elidedText(status, Qt::ElideRight, text->width()));
       text->setVisible(true);
+      if (status == QStringLiteral("Starting")) {
+        constexpr int startup_duration_ms = 12000;
+        startup_progress_timer.stop();
+        startup_progress_clock.restart();
+        progress_bar->setRange(0, startup_duration_ms);
+        progress_bar->setValue(0);
+        progress_bar->setVisible(true);
+        startup_progress_timer.start();
+      } else {
+        startup_progress_timer.stop();
+      }
     }
   }
 }
