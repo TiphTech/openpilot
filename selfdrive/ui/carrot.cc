@@ -3171,7 +3171,8 @@ OnroadHaloState onroad_halo_state(const UIState &s) {
         static uint64_t last_threshold_read = 0;
         const uint64_t now = millis_since_boot();
         if (now - last_threshold_read >= 1000) {
-            decel_threshold_tenths = std::clamp(Params().getInt("TopBarBrakeDecelThreshold"), 1, 30);
+            const int configured_threshold = Params().getInt("TopBarBrakeDecelThreshold");
+            decel_threshold_tenths = configured_threshold > 0 ? std::clamp(configured_threshold, 1, 30) : 6;
             last_threshold_read = now;
         }
 

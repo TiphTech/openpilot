@@ -158,6 +158,10 @@ void UIState::updateStatus() {
 }
 
 UIState::UIState(QObject *parent) : QObject(parent) {
+  Params params;
+  if (params.get("TopBarBrakeDecelThreshold").empty()) {
+    params.putInt("TopBarBrakeDecelThreshold", 6);
+  }
   ublox_avaliable = Params().getBool("UbloxAvailable");
   auto gps_service = (ublox_avaliable) ? "gpsLocationExternal" : "gpsLocation";
   sm = std::make_unique<SubMaster>(std::vector<const char*>{
