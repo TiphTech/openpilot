@@ -427,7 +427,7 @@ class VCruiseCarrot:
 
     self.cruise_state_available_last = CS.cruiseState.available
     self.enabled_last = CC.enabled
-    self._main_cruise_active_last = bool(CS.cruiseState.enabled or CC.enabled)
+    self._main_cruise_active_last = bool(CS.cruiseState.enabled or CC.enabled or self._lat_enabled)
 
   def initialize_v_cruise(self, CS, experimental_mode: bool) -> None:
     return
@@ -871,7 +871,7 @@ class VCruiseCarrot:
     self._paddle_decel_active = False
     self.carrot_cruise_active = False
 
-    if self._main_cruise_active_last:
+    if self._main_cruise_active_last or self._lat_enabled:
       self._lat_enabled = False
       self._pause_auto_speed_up = False
       self._cruise_cancel_state = True

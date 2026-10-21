@@ -178,3 +178,51 @@ def test_main_cruise_button_toggles_longitudinal_and_lateral(pcm_cruise, was_act
   assert helper.stored_speed == 88
   if not was_active:
     assert helper.queued_speed == 88
+
+
+def test_main_cruise_button_disables_lateral_only():
+  helper = VCruiseCarrot(car.CarParams(pcmCruise=True))
+  helper._main_cruise_active_last = False
+  helper._lat_enabled = True
+  helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
+  helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
+  helper._add_log = lambda message: None
+
+  helper._handle_main_cruise_button(88)
+
+  assert not helper._lat_enabled
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise == 0
+
+
+def test_main_cruise_button_disables_cruise_only():
+  helper = VCruiseCarrot(car.CarParams(pcmCruise=True))
+  helper._main_cruise_active_last = True
+  helper._lat_enabled = False
+  helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
+  helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
+  helper._add_log = lambda message: None
+
+  helper._handle_main_cruise_button(88)
+
+  assert not helper._lat_enabled
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise == 0
+  assert helper.stored_speed == 88
+
+
+def test_main_cruise_button_reactivates_cruise_and_lateral():
+  helper = VCruiseCarrot(car.CarParams(pcmCruise=True))
+  helper._main_cruise_active_last = False
+  helper._lat_enabled = False
+  helper._v_cruise_kph_resume = 88
+  helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
+  helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
+  helper._add_log = lambda message: None
+
+  helper._handle_main_cruise_button(50)
+
+  assert helper._lat_enabled
+  assert not helper._cruise_cancel_state
+  assert helper._activate_cruise == 1
+  assert helper.queued_speed == 88
