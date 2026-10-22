@@ -50,6 +50,7 @@ def get_radar_can_parser_scc(CP):
 class RadarInterface(RadarInterfaceBase):
   def __init__(self, CP):
     super().__init__(CP)
+    self.scc_track_id = SCC_TID
     
     self.canfd = True if CP.flags & HyundaiFlags.CANFD else False
     self.radar_group1 = False

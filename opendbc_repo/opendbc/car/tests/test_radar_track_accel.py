@@ -1,20 +1,19 @@
 from collections import deque
-from types import SimpleNamespace
 
 import pytest
 
-from opendbc.car.interfaces import MyTrack, estimate_radar_jerk
+from opendbc.car import structs
+from opendbc.car.interfaces import MyTrack, RadarInterfaceBase, estimate_radar_jerk
 
 
-def radar_point(v_lead: float, *, measured: bool = True, source: str = "frontRadar"):
-  return SimpleNamespace(
+def radar_point(v_lead: float, *, measured: bool = True):
+  return structs.RadarData.RadarPoint(
     dRel=30.0,
     yRel=0.0,
     vRel=v_lead - 20.0,
     yvRel=0.0,
     vLead=v_lead,
     measured=measured,
-    radarSource=source,
   )
 
 
@@ -53,15 +52,33 @@ def test_new_track_still_requires_acceleration_warmup():
 
 def test_scc_single_slot_still_restarts_on_large_velocity_jump():
   dt = 0.05
-  point = radar_point(20.0, source="scc")
-  track = MyTrack(0, point, dt)
+  point = radar_point(20.0)
+  track = MyTrack(0, point, dt, radar_source="scc")
 
   for _ in range(8):
     track.update(point, 0.0)
-  track.update(radar_point(19.0, source="scc"), 0.0)
+  track.update(radar_point(19.0), 0.0)
 
   assert track.noisy
   assert track.cnt == 1
+
+
+def test_c3_radar_schema_initializes_front_and_scc_tracks():
+  interface = RadarInterfaceBase(structs.CarParams(radarTimeStep=0.05))
+  interface.scc_track_id = 0
+  for track_id in (0, 37):
+    point = radar_point(20.0)
+    point.trackId = track_id
+    interface.pts[track_id] = point
+  interface.init_done = True
+  interface.dt = 0.05
+
+  for index in range(10):
+    interface.update_carrot(20.0, 0.0, index * 0.01, [])
+
+  assert interface.tracks[0].radar_source == "scc"
+  assert interface.tracks[37].radar_source == "frontRadar"
+  assert all(track.cnt == 2 for track in interface.tracks.values())
 
 
 def test_quadratic_velocity_fit_recovers_jerk():

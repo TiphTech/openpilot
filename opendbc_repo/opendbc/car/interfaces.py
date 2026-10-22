@@ -230,7 +230,7 @@ def estimate_radar_jerk(velocity_history: deque[float], dt: float) -> float:
   return normalized_jerk / (dt ** 2)
 
 class MyTrack:
-  def __init__(self, track_id: int, radar_point, dt: float):
+  def __init__(self, track_id: int, radar_point, dt: float, radar_source: str = "frontRadar"):
     self.track_id = track_id
     self.cnt = 0
     self.dRel = radar_point.dRel
@@ -238,7 +238,7 @@ class MyTrack:
     self.yRel = radar_point.yRel
     self.yvRel = radar_point.yvRel
     self.vLead = radar_point.vLead
-    self.radar_source = str(radar_point.radarSource)
+    self.radar_source = radar_source
     self.aLead = 0.0
     self.jLead = 0.0
     self.noisy = False
@@ -275,7 +275,6 @@ class MyTrack:
     self.yRel = radar_point.yRel
     self.yvRel = radar_point.yvRel
     self.vLead = radar_point.vLead
-    self.radar_source = str(radar_point.radarSource)
     self._reset_kinematics()
     self.yRel_avg.x = self.yRel
     self.yvRel_avg.x = self.yvRel
@@ -353,6 +352,7 @@ class RadarInterfaceBase(ABC):
     self.CP = CP
     self.rcp = None
     self.tracks: dict[int, MyTrack] = {}
+    self.scc_track_id: int | None = None
     self.pts: dict[int, structs.RadarData.RadarPoint] = {}
     self.frame = 0
     delay = CP.radarDelay
@@ -396,7 +396,8 @@ class RadarInterfaceBase(ABC):
       for addr, radar_point in self.pts.items():
         track_id = radar_point.trackId
         if track_id not in self.tracks:
-          new_tracks[track_id] = MyTrack(track_id, radar_point, self.dt)
+          radar_source = "scc" if track_id == self.scc_track_id else "frontRadar"
+          new_tracks[track_id] = MyTrack(track_id, radar_point, self.dt, radar_source)
         else:
           new_tracks[track_id] = self.tracks[track_id]
         new_tracks[track_id].update(radar_point, self.a_ego)
