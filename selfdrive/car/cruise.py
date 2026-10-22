@@ -398,7 +398,8 @@ class VCruiseCarrot:
 
     if CS.cruiseState.available:
       if not self.cruise_state_available_last:
-        self._lat_enabled = True
+        if not self._cruise_cancel_state:
+          self._lat_enabled = True
         v_cruise_kph = self.v_ego_kph_set
       if not self.CP.pcmCruise:
         # if stock cruise is completely disabled, then we can use our own set speed logic
@@ -867,30 +868,20 @@ class VCruiseCarrot:
     return v_cruise_kph
 
   def _handle_main_cruise_button(self, v_cruise_kph):
-    """Toggle cruise and lateral control, using the saved set speed when resuming."""
+    """Disable longitudinal and lateral control without allowing Main to resume."""
     self._paddle_decel_active = False
     self.carrot_cruise_active = False
 
     if self._main_cruise_active_last or self._lat_enabled:
-      self._lat_enabled = False
-      self._pause_auto_speed_up = False
-      self._cruise_cancel_state = True
       self._store_resume_cruise_speed(v_cruise_kph)
-      if not self.CP.pcmCruise:
-        self._activate_cruise = -1
-      action = "off"
-    else:
-      self._lat_enabled = True
-      self._pause_auto_speed_up = False
-      self._cruise_cancel_state = False
-      v_cruise_kph = self._resume_cruise_speed()
-      self._queue_pcm_set_speed(v_cruise_kph)
-      self._store_resume_cruise_speed(v_cruise_kph)
-      self._activate_cruise = 1
-      self._cruise_ready = False
-      action = f"resumed at {v_cruise_kph:.0f}"
+    self._lat_enabled = False
+    self._pause_auto_speed_up = False
+    self._cruise_cancel_state = True
+    self._cruise_ready = False
+    self._pending_pcm_set_speed_kph = 0.0
+    self._activate_cruise = 0 if self.CP.pcmCruise else -1
 
-    self._add_log(f"Main cruise button: {action}, lateral {'off' if not self._lat_enabled else 'on'}")
+    self._add_log("Main cruise button: off, lateral off")
     return v_cruise_kph
 
   def _toggle_turn_speed_control(self):

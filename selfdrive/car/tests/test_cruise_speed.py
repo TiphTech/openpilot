@@ -152,16 +152,17 @@ class TestVCruiseHelper:
 
 
 @pytest.mark.parametrize("pcm_cruise, was_active, activate_cruise", [
-  (True, True, 0), (False, True, -1), (True, False, 1), (False, False, 1),
+  (True, True, 0), (False, True, -1), (True, False, 0), (False, False, -1),
 ])
-def test_main_cruise_button_toggles_longitudinal_and_lateral(pcm_cruise, was_active, activate_cruise):
+def test_main_cruise_button_only_disables_longitudinal_and_lateral(pcm_cruise, was_active, activate_cruise):
   helper = VCruiseCarrot(car.CarParams(pcmCruise=pcm_cruise))
   helper._main_cruise_active_last = was_active
   helper._lat_enabled = was_active
   helper._paddle_decel_active = True
   helper.carrot_cruise_active = True
   helper._pause_auto_speed_up = True
-  helper._activate_cruise = 0
+  helper._activate_cruise = 1
+  helper._pending_pcm_set_speed_kph = 120
   helper._v_cruise_kph_resume = 88
   helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
   helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
@@ -169,15 +170,18 @@ def test_main_cruise_button_toggles_longitudinal_and_lateral(pcm_cruise, was_act
 
   helper._handle_main_cruise_button(88)
 
-  assert helper._lat_enabled is not was_active
+  assert not helper._lat_enabled
   assert not helper._paddle_decel_active
   assert not helper.carrot_cruise_active
   assert not helper._pause_auto_speed_up
-  assert helper._cruise_cancel_state is was_active
+  assert helper._cruise_cancel_state
   assert helper._activate_cruise == activate_cruise
-  assert helper.stored_speed == 88
-  if not was_active:
-    assert helper.queued_speed == 88
+  assert helper._pending_pcm_set_speed_kph == 0
+  if was_active:
+    assert helper.stored_speed == 88
+  else:
+    assert not hasattr(helper, "stored_speed")
+  assert not hasattr(helper, "queued_speed")
 
 
 def test_main_cruise_button_disables_lateral_only():
@@ -211,18 +215,52 @@ def test_main_cruise_button_disables_cruise_only():
   assert helper.stored_speed == 88
 
 
-def test_main_cruise_button_reactivates_cruise_and_lateral():
+def test_main_cruise_button_second_press_keeps_both_disabled():
   helper = VCruiseCarrot(car.CarParams(pcmCruise=True))
-  helper._main_cruise_active_last = False
-  helper._lat_enabled = False
+  helper._main_cruise_active_last = True
+  helper._lat_enabled = True
   helper._v_cruise_kph_resume = 88
   helper._store_resume_cruise_speed = lambda speed: setattr(helper, "stored_speed", speed)
   helper._queue_pcm_set_speed = lambda speed: setattr(helper, "queued_speed", speed)
   helper._add_log = lambda message: None
 
+  helper._handle_main_cruise_button(88)
+  helper._main_cruise_active_last = False
   helper._handle_main_cruise_button(50)
 
-  assert helper._lat_enabled
-  assert not helper._cruise_cancel_state
-  assert helper._activate_cruise == 1
-  assert helper.queued_speed == 88
+  assert not helper._lat_enabled
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise == 0
+  assert helper.stored_speed == 88
+  assert not hasattr(helper, "queued_speed")
+
+
+def test_main_cruise_button_does_not_enable_on_cruise_available_rising_edge():
+  from collections import defaultdict
+  from unittest.mock import MagicMock
+
+  helper = VCruiseCarrot(car.CarParams(pcmCruise=True))
+  helper._main_cruise_active_last = False
+  helper._lat_enabled = False
+  helper.cruise_state_available_last = False
+  helper.speed_from_pcm = 1
+  helper.update_params = lambda is_metric: None
+  helper._prepare_brake_gas = lambda cs, cc: None
+  helper._update_cruise_buttons = lambda cs, cc, speed: helper._handle_main_cruise_button(speed)
+  helper._add_log = lambda message: None
+  sm = MagicMock()
+  sm.alive = defaultdict(bool)
+  sm.__getitem__.return_value = car.CarControl(enabled=False)
+  cs = car.CarState(gearShifter=car.CarState.GearShifter.drive, cruiseState={"available": True})
+
+  helper.update_v_cruise(cs, sm, is_metric=True)
+
+  assert not helper._lat_enabled
+  assert helper._cruise_cancel_state
+  assert helper._activate_cruise == 0
+
+
+def test_main_cruise_button_is_not_a_hyundai_enable_button():
+  from opendbc.car.hyundai.interface import ENABLE_BUTTONS
+
+  assert ButtonType.mainCruise not in ENABLE_BUTTONS
