@@ -12,6 +12,7 @@
 #include <QJsonArray>
 #include <QImage>
 #include "selfdrive/ui/qt/onroad/speed_limit_animation.h"
+#include "selfdrive/ui/qt/onroad/brake_halo.h"
 
 //#define __TEST
 //#define __UI_TEST
@@ -3158,8 +3159,12 @@ void ui_draw(UIState *s, ModelRenderer* model_renderer, int w, int h) {
 }
 
 OnroadHaloState onroad_halo_state(const UIState &s) {
+    static BrakeHaloIndicator brake_indicator;
     OnroadHaloState state;
-    if (!s.scene.started) return state;
+    if (!s.scene.started) {
+        brake_indicator.reset();
+        return state;
+    }
     const SubMaster &sm = *s.sm;
     if (sm.alive("carState") && sm.valid("carState")) {
         const auto cs = sm["carState"].getCarState();
@@ -3181,9 +3186,11 @@ OnroadHaloState onroad_halo_state(const UIState &s) {
             const auto accels = sm["longitudinalPlan"].getLongitudinalPlan().getAccels();
             if (accels.size() > 0) cruise_accel = accels[0];
         }
-        state.braking = should_show_brake_halo(cs.getBrakePressed(), state.cruise,
+        state.braking = brake_indicator.update(cs.getBrakePressed(), state.cruise,
                                                cruise_accel, cs.getAEgo(),
                                                decel_threshold_tenths / 10.0f);
+    } else {
+        brake_indicator.reset();
     }
     state.lateral = sm.alive("carControl") && sm.valid("carControl") && sm["carControl"].getCarControl().getLatActive();
     return state;

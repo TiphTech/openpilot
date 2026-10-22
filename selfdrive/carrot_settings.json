@@ -2197,7 +2197,7 @@
       "descr": "실제 차량 감속이 임계값 이상일 때 상단바를 빨간색으로 표시합니다. 브레이크 페달과 크루즈 제동 요청은 항상 빨간색으로 표시합니다.",
       "egroup": "DISP",
       "etitle": "Top bar deceleration threshold*0.1(0.6m/s²)",
-      "edescr": "Show the top halo red when measured vehicle deceleration reaches this threshold. Brake pedal and cruise braking requests always turn it red.",
+      "edescr": "Show the top halo red when measured vehicle deceleration reaches this threshold, with 0.2 m/s² hysteresis to prevent flicker. Brake pedal and cruise braking requests also turn it red.",
       "min": 1,
       "max": 30,
       "default": 6,
