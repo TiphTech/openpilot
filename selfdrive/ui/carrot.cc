@@ -3188,7 +3188,7 @@ OnroadHaloState onroad_halo_state(const UIState &s) {
         }
         state.braking = brake_indicator.update(cs.getBrakePressed(), state.cruise,
                                                cruise_accel, cs.getAEgo(),
-                                               decel_threshold_tenths / 10.0f);
+                                               decel_threshold_tenths / 10.0f, now);
     } else {
         brake_indicator.reset();
     }
