@@ -811,7 +811,9 @@ class CarState(CarStateBase):
     if not (CP.flags & HyundaiFlags.CANFD_ALT_BUTTONS):
       # TODO: this can be removed once we add dynamic support to vl_all
       msgs += [
-        ("CRUISE_BUTTONS", 50)
+        # Button state is non-critical while engaged and can briefly stop
+        # transmitting; keep bus-level timeout detection, but tolerate a gap.
+        ("CRUISE_BUTTONS", 10)
       ]
     return {
       Bus.pt: CANParser(DBC[CP.carFingerprint][Bus.pt], msgs, CanBus(CP).ECAN),

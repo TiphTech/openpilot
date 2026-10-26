@@ -93,6 +93,23 @@ def test_absent_optional_messages_do_not_add_validity_checks(setup):
   assert parsers[Bus.cam].can_valid
 
 
+def test_cruise_button_gap_does_not_mask_a_silent_can_bus(setup):
+  _, parsers, _ = setup
+  parser = parsers[Bus.pt]
+  msg = parser.message_states[parser.dbc.name_to_msg["CRUISE_BUTTONS"].address]
+
+  # The button frame may pause for up to one second while other CAN traffic
+  # continues, but the parser still detects a completely silent bus at 500 ms.
+  assert msg.timeout_threshold == 1_000_000_000
+  msg.timestamps.append(1_000_000_000)
+  assert msg.valid(1_900_000_000, bus_timeout=False)
+  assert not msg.valid(2_000_000_001, bus_timeout=False)
+
+  parser.last_nonempty_nanos = 1_000_000_000
+  parser._last_update_nanos = 1_500_000_001
+  assert parser.bus_timeout
+
+
 def test_bad_checksum_then_valid_receive_and_expired_first_frame(setup):
   state, parsers, packer = setup
   state.controls_ready_count = carstate.READY_COUNT_OK + 1
