@@ -13,6 +13,7 @@
 #include <QImage>
 #include "selfdrive/ui/qt/onroad/speed_limit_animation.h"
 #include "selfdrive/ui/qt/onroad/brake_halo.h"
+#include "selfdrive/ui/qt/onroad/lane_position.h"
 
 //#define __TEST
 //#define __UI_TEST
@@ -2900,40 +2901,20 @@ NVGcolor alert_color;
 static void drawLaneCenterIndicator(const UIState *s) {
   // Lane centering indicator: trapezoid bar + gradient marble
   const SubMaster &sm = *(s->sm);
-  if (!sm.alive("modelV2")) return;
+  if (!sm.alive("modelV2") || !sm.valid("modelV2")) return;
 
   const auto &model = sm["modelV2"].getModelV2();
   const auto lane_lines = model.getLaneLines();
   const auto lane_line_probs = model.getLaneLineProbs();
 
-  // 차량 중심(0)에서 왼쪽(1)과 오른쪽(2) 차선까지의 거리 (미터 단위)
-  // 왼쪽 차선은 보통 양수(y > 0), 오른쪽 차선은 음수(y < 0)이므로 오른쪽은 -를 붙여 양수로 변환
-  float left_m  = lane_lines[1].getY()[0];
-  float right_m = -lane_lines[2].getY()[0];
-  
-  // 차선 인식 확률이 낮은 경우 한쪽 차선을 기준으로 반대쪽 차선의 위치를 추정 (기본 차선폭 3.0m)
-  if (lane_line_probs[1] < 0.3f && lane_line_probs[2] > 0.3f) {
-    left_m = 3.0f - right_m;
-  } else if (lane_line_probs[2] < 0.3f && lane_line_probs[1] > 0.3f) {
-    right_m = 3.0f - left_m;
-  }
+  if (lane_lines.size() < 3 || lane_line_probs.size() < 3 ||
+      lane_lines[1].getY().size() == 0 || lane_lines[2].getY().size() == 0) return;
+  const auto lane = lane_position(lane_lines[1].getY()[0], lane_lines[2].getY()[0],
+                                  lane_line_probs[1], lane_line_probs[2]);
+  if (!lane) return;
+  const float offset_m = lane->offset_left_m;
+  const float danger_ratio = lane->danger_ratio;
 
-  float total   = left_m + right_m;
-  if (total < 0.5f) total = 3.0f;  // 최후의 보루
-
-  // offset from center lane: positive = car displaced RIGHT, negative = LEFT
-  // left_m 이 클수록 왼쪽 차선에서 멀어진 것 -> 차량이 우측으로 치우침
-  float offset_m = (left_m - right_m) / 2.0f;
-  
-  // 차량 편차 한계점 (일반 차량 폭 약 1.8m -> 절반 0.9m)
-  // 차량 끝(바퀴)이 차선을 밟는 시점을 danger_ratio = 1.0으로 산출
-  float car_half_width = 0.9f;
-  float limit_offset = (total / 2.0f) - car_half_width;
-  if (limit_offset < 0.1f) limit_offset = 0.1f; // 0 나누기 방지
-  
-  float danger_ratio = fabsf(offset_m) / limit_offset;
-
-  // openpilot Y축: 양수=왼쪽 → offset_m>0 이면 차량이 좌측에 치우침
   char dir_label[4], dist_str[8];
   if (offset_m > 0.02f)       snprintf(dir_label, sizeof(dir_label), "L");
   else if (offset_m < -0.02f) snprintf(dir_label, sizeof(dir_label), "R");
@@ -2966,6 +2947,7 @@ static void drawLaneCenterIndicator(const UIState *s) {
   // 차량의 모델 예측 경로상에 색상이 지정된 주행경로 3D 폴리곤 생성
   const auto position = model.getPosition();
   const auto line_x = position.getX(), line_y = position.getY(), line_z = position.getZ();
+  if (line_x.size() < 6 || line_y.size() != line_x.size() || line_z.size() != line_x.size()) return;
   // 선행차까지만 그리기: 선행차 감지시 dRel까지, 없으면 최대 40m
   float max_dist = 40.0f;
   {

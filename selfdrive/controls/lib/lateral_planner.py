@@ -9,11 +9,12 @@ from openpilot.selfdrive.controls.lib.drive_helpers import CONTROL_N, MIN_SPEED,
 import cereal.messaging as messaging
 from cereal import log
 
-from openpilot.common.params import Params
+from openpilot.common.params import Params, UnknownKeyName
 from openpilot.common.filter_simple import FirstOrderFilter
 from openpilot.selfdrive.carrot.speed_tuning import path_offset_for_mode
 #from openpilot.selfdrive.controls.lib.lane_planner import LanePlanner
 from openpilot.selfdrive.controls.lib.lane_planner_2 import LanePlanner
+from openpilot.selfdrive.controls.lib.lane_centering import AutoLaneCentering
 from collections import deque
 
 TRAJECTORY_SIZE = 33
@@ -63,6 +64,8 @@ class LateralPlanner:
     self.useLaneLineSpeedApply = self.params.get_int("UseLaneLineSpeed")
     self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
     self.pathOffsetFilter = FirstOrderFilter(0.0, 1.0, DT_MDL)
+    self.auto_lane_centering = AutoLaneCentering(DT_MDL)
+    self.auto_lane_centering_enabled = False
     self.useLaneLineMode = False
     self.plan_a = np.zeros((TRAJECTORY_SIZE, ))
     self.plan_yaw = np.zeros((TRAJECTORY_SIZE,))
@@ -90,6 +93,11 @@ class LateralPlanner:
       self.readParams = 10
       self.useLaneLineSpeedApply = sm['carState'].useLaneLineSpeed
       self.pathOffset = float(self.params.get_int("PathOffset")) * 0.01
+      self.centering_min_curve_speed = self.params.get_int("UseLaneLineCurveSpeed")
+      try:
+        self.auto_lane_centering_enabled = self.params.get_bool("AutoLaneCentering")
+      except UnknownKeyName:
+        self.auto_lane_centering_enabled = False
       self.lateralPathCost = self.params.get_float("LatMpcPathCost") * 0.01
       self.lateralMotionCost = self.params.get_float("LatMpcMotionCost") * 0.01
       LATERAL_ACCEL_COST = self.params.get_float("LatMpcAccelCost") * 0.01
@@ -165,6 +173,19 @@ class LateralPlanner:
 
     target_path_offset = path_offset_for_mode(self.pathOffset, self.lanelines_active)
     self.path_xyz[:, 1] += self.pathOffsetFilter.update(target_path_offset)
+
+    cs = sm['carState']
+    centering_offset = self.auto_lane_centering.update(
+      md, self.path_xyz,
+      enabled=self.auto_lane_centering_enabled,
+      lateral_active=bool(sm['carControl'].latActive and model_active and sm.all_checks(['carState', 'controlsState', 'modelV2', 'carControl'])),
+      lane_mode_active=self.lanelines_active and abs(self.curve_speed) > self.centering_min_curve_speed,
+      maneuver_active=bool(md.meta.desire != log.Desire.none or md.meta.laneChangeState != log.LaneChangeState.off or carrot.atc_active or
+                           cs.leftBlinker or cs.rightBlinker or cs.steeringPressed),
+      speed=v_ego_car, curvature=measured_curvature,
+      manual_offset=self.pathOffsetFilter.x + self.LP.offset_total,
+    )
+    self.path_xyz[:, 1] += centering_offset
 
     self.lat_mpc.set_weights(self.lateralPathCost, self.lateralMotionCost,
                              LATERAL_ACCEL_COST, LATERAL_JERK_COST,
@@ -269,6 +290,8 @@ class LateralPlanner:
     )
 
     lateralPlan.latDebugText = debugText
+    if self.auto_lane_centering_enabled or abs(self.auto_lane_centering.offset_m) > 0.001:
+      lateralPlan.latDebugText += f" | center={self.auto_lane_centering.offset_m * 100:+.1f}cm {self.auto_lane_centering.status}"
     #lateralPlan.latDebugText = self.latDebugText
     #lateralPlan.laneWidthLeft = float(self.DH.lane_width_left)
     #lateralPlan.laneWidthRight = float(self.DH.lane_width_right)

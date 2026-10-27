@@ -19,6 +19,22 @@
     },
     {
       "group": "조향일반",
+      "name": "AutoLaneCentering",
+      "title": "Automatic lane centering (LaneMode)",
+      "descr": "Experimental; off by default. Two reliable lane lines required. Maximum 15 cm, at most 1 cm/s. Suspended during maneuvers, steering override and sharp curves. Does not replace camera alignment or calibration.",
+      "egroup": "LAT",
+      "etitle": "Automatic lane centering (LaneMode)",
+      "edescr": "Experimental; off by default. Two reliable lane lines required. Maximum 15 cm, at most 1 cm/s. Suspended during maneuvers, steering override and sharp curves. Does not replace camera alignment or calibration.",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "unit": 1,
+      "cgroup": "LAT",
+      "ctitle": "Automatic lane centering (LaneMode)",
+      "cdescr": "Experimental; off by default. Two reliable lane lines required. Maximum 15 cm, at most 1 cm/s. Suspended during maneuvers, steering override and sharp curves. Does not replace camera alignment or calibration."
+    },
+    {
+      "group": "조향일반",
       "name": "CameraYawTrimDeg",
       "title": "카메라YAW보정*0.01deg(0)",
       "descr": "카메라 좌우(YAW) 값을 미세조정(+: 오른쪽)",
